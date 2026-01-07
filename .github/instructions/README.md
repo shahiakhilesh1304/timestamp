@@ -20,18 +20,21 @@ This directory contains instruction files that embed the countdown project's cod
 
 | File | Applies To | Purpose |
 |------|------------|---------|
-| [`copilot-instructions.instructions.md`](copilot-instructions.instructions.md) | Instruction files | Meta-guide for writing instruction files |
-| [`typescript.instructions.md`](typescript.instructions.md) | `**/*.{ts,tsx}` | TypeScript coding standards, naming conventions |
-| [`testing.instructions.md`](testing.instructions.md) | `**/*.{test,spec}.{ts,tsx}` | Test writing guidelines, patterns |
-| [`themes.instructions.md`](themes.instructions.md) | `src/themes/**/*.ts` | Theme architecture, lifecycle, registration |
-| [`complex-theme-patterns.instructions.md`](complex-theme-patterns.instructions.md) | `src/themes/**/*.{ts,css,scss}` | Advanced patterns for complex themes |
-| [`pwa.instructions.md`](pwa.instructions.md) | `src/app/pwa/**/*.ts` | PWA development guidelines |
-| [`github-actions.instructions.md`](github-actions.instructions.md) | `**/*.{yml,yaml}` | Workflow patterns, security, SHA pinning |
-| [`custom-agents.instructions.md`](custom-agents.instructions.md) | `**/*.agent.md` | Agent structure, workflows, tool usage |
-| [`manager-agents.instructions.md`](manager-agents.instructions.md) | `.github/agents/manager-*.agent.md` | Manager agent orchestration patterns |
-| [`specialist-agents.instructions.md`](specialist-agents.instructions.md) | `.github/agents/specialist-*.agent.md` | Specialist agent domain expertise |
-| [`prompt-files.instructions.md`](prompt-files.instructions.md) | `**/*.prompt.md` | Prompt file format, variables, naming conventions |
-| [`perf-analysis.instructions.md`](perf-analysis.instructions.md) | `**/*.{ts,tsx,spec.ts}` | Performance monitoring and analysis |
+| [`assets-sync.instructions.md`](assets-sync.instructions.md) | `**/ASSETS.md` | Asset synchronization rules for theme and root ASSETS.md files |
+| [`complex-theme-patterns.instructions.md`](complex-theme-patterns.instructions.md) | `src/themes/**/*.{ts,css,scss}` | Advanced patterns for complex themes with animations and state |
+| [`copilot-instructions.instructions.md`](copilot-instructions.instructions.md) | `**/{copilot-instructions.md,*.instructions.md,AGENTS.md,CLAUDE.md,GEMINI.md}` | Standards for creating custom instruction files |
+| [`custom-agents.instructions.md`](custom-agents.instructions.md) | `**/*.agent.md` | Guidelines for creating GitHub Copilot custom agents |
+| [`documentation.instructions.md`](documentation.instructions.md) | `**/*.{ts,tsx}` | TSDoc and code documentation standards (SINGLE SOURCE OF TRUTH) |
+| [`github-actions.instructions.md`](github-actions.instructions.md) | `.github/workflows/**/*.{yml,yaml}` | Workflow patterns, security, SHA pinning |
+| [`manager-agents.instructions.md`](manager-agents.instructions.md) | `.github/agents/manager-*.agent.md` | Patterns for Manager agents that orchestrate multi-stage workflows |
+| [`perf-analysis.instructions.md`](perf-analysis.instructions.md) | `**/*.{ts,tsx,spec.ts}` | Performance monitoring and analysis guidelines |
+| [`prompt-files.instructions.md`](prompt-files.instructions.md) | `**/*.prompt.md` | Guidelines for creating VS Code prompt files |
+| [`pwa.instructions.md`](pwa.instructions.md) | `src/{app,components}/pwa/**/*.ts` | Progressive Web App development guidelines |
+| [`spec-plan-docs.instructions.md`](spec-plan-docs.instructions.md) | `docs/{specs,plans}/*.md` | Standards for specification and implementation plan documents |
+| [`specialist-agents.instructions.md`](specialist-agents.instructions.md) | `.github/agents/specialist-*.agent.md` | Patterns for Specialist agents that provide domain expertise |
+| [`testing.instructions.md`](testing.instructions.md) | `**/*.{test,spec}.{ts,tsx}` | Testing best practices for Vitest and Playwright tests |
+| [`themes.instructions.md`](themes.instructions.md) | `src/themes/**/*.ts` | Theme architecture, lifecycle, and development patterns |
+| [`typescript.instructions.md`](typescript.instructions.md) | `**/*.{ts,tsx}` | TypeScript best practices for clean, maintainable code |
 
 
 ## ✍️ Creating New Instructions
