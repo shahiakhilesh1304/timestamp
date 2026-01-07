@@ -4,7 +4,7 @@
  * Consolidates form-state and interaction-controller responsibilities.
  */
 
-import { getModeConfig, MODE_ORDER } from '@core/config/mode-config';
+import { getModeConfig, isValidMode, MODE_ORDER } from '@core/config/mode-config';
 import { convertWallClockToAbsolute, createNextOccurrence } from '@core/time/wall-clock-conversion';
 import type { CountdownConfig, CountdownMode, ThemeId } from '@core/types';
 import {
@@ -200,10 +200,10 @@ export function createFormController(
   return {
     // State management methods
     initializeForm(config: Partial<CountdownConfig> | undefined, state: LandingPageFormState): void {
-      // Mode - ensure valid mode type for radio selection
-      const mode = state.mode;
-      elements.modeRadios[mode].checked = true;
-      this.toggleMode(mode, state);
+      // Mode - validate against known modes to prevent prototype pollution
+      const safeMode: CountdownMode = isValidMode(state.mode) ? state.mode : MODE_ORDER[0];
+      elements.modeRadios[safeMode].checked = true;
+      this.toggleMode(safeMode, state);
 
       // Date input
       const wallClockNewYear = createNextOccurrence(0, 1);
@@ -223,7 +223,7 @@ export function createFormController(
         elements.completionMessageInput.value = config.completionMessage;
       }
 
-      this.updateStartButtonLabel(mode);
+      this.updateStartButtonLabel(safeMode);
     },
 
     setConfig(config: Partial<CountdownConfig>, state: LandingPageFormState): void {
