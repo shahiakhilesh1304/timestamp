@@ -129,6 +129,15 @@ export function worldMapAvailableForMode(mode: CountdownMode, userConfig?: boole
 /** Modes in display order (landing page). @public */
 export const MODE_ORDER: readonly CountdownMode[] = ['wall-clock', 'absolute', 'timer'] as const;
 
+/**
+ * Type guard to validate a value is a known CountdownMode.
+ * Prevents prototype pollution by ensuring only literal mode strings are accepted.
+ * @public
+ */
+export function isValidMode(value: unknown): value is CountdownMode {
+  return MODE_ORDER.includes(value as CountdownMode);
+}
+
 /** Get all mode configs in display order for UI iteration. @public */
 export function getAllModeConfigs(): ReadonlyArray<{ mode: CountdownMode; config: ModeConfig }> {
   return MODE_ORDER.map(mode => ({ mode, config: MODE_CONFIG[mode] }));
