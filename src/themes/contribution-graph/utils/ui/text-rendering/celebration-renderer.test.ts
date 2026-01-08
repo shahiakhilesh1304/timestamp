@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { GridState, Square } from '../../../types';
 import { CSS_CLASSES } from '../../../config';
-import { renderCelebrationText, clearCelebrationText } from './celebration-renderer';
+import type { GridState, Square } from '../../../types';
+import { clearCelebrationText, renderCelebrationText } from './celebration-renderer';
 
 function createGridState(cols = 20, rows = 15): GridState {
   const squares: Square[] = [];
@@ -67,5 +67,18 @@ describe('celebration-renderer', () => {
     clearCelebrationText(state);
 
     expect(messageSquares.every((sq) => !sq.element.classList.contains(CSS_CLASSES.MESSAGE))).toBe(true);
+  });
+
+  it('should render messages with numbers (digits 0-9)', () => {
+    const state = createGridState(80, 20); // Wide grid for long message
+
+    const { messageSquares, messageIndices } = renderCelebrationText(state, '2026');
+
+    // Should render all characters including the numbers
+    expect(messageSquares.length).toBeGreaterThan(0);
+    expect(messageIndices.size).toBe(messageSquares.length);
+    
+    // All message squares should have the MESSAGE class
+    expect(messageSquares.every((sq) => sq.element.classList.contains(CSS_CLASSES.MESSAGE))).toBe(true);
   });
 });

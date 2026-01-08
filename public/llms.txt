@@ -1,0 +1,76 @@
+# Timestamp
+
+> A customizable time tracking web app with countdowns, timers, and world clocks featuring multiple visual themes and instant URL sharing. Built with TypeScript, vanilla JavaScript, and progressive web app capabilities.
+
+Key features:
+- Three countdown modes: Local Time (wall clock per timezone), Same Moment (absolute UTC instant), and Timer (fixed duration)
+- Multiple visual themes with animated canvas effects (contribution graph, fireworks, etc.)
+- Instant URL sharing - every countdown configuration generates a shareable URL
+- World map with real-time day/night visualization
+- Full PWA support with offline capabilities
+- Comprehensive accessibility support including screen readers and reduced motion
+
+Architecture:
+- Modular orchestrator pattern coordinating theme lifecycle and state
+- Plugin-based theme system with registry-driven configuration
+- TypeScript with strict type checking and path aliases
+- Comprehensive test coverage (Vitest unit tests + Playwright E2E)
+
+## Getting Started
+
+- [Live App](https://chrisreddington.github.io/timestamp/): Use Timestamp now
+- [Star on GitHub](https://github.com/chrisreddington/timestamp): Support the project
+- [Report a Bug](https://github.com/chrisreddington/timestamp/issues/new?template=bug_report.yml): Found an issue? Let us know
+- [Request a Feature](https://github.com/chrisreddington/timestamp/issues/new?template=feature_request.yml): Have an idea? Share it
+- [View All Issues](https://github.com/chrisreddington/timestamp/issues): Browse open issues and discussions
+
+## Docs
+
+- [README](https://github.com/chrisreddington/timestamp/blob/main/README.md): Project overview, features, and quick start guide
+- [Architecture](https://github.com/chrisreddington/timestamp/blob/main/docs/ARCHITECTURE.md): System design, orchestrator pattern, and component relationships
+- [Theme Development](https://github.com/chrisreddington/timestamp/blob/main/docs/THEME_DEVELOPMENT.md): Complete guide to creating custom themes
+- [Deep Linking](https://github.com/chrisreddington/timestamp/blob/main/docs/DEEP-LINKING.md): URL structure and parameter encoding for sharing countdowns
+- [Performance Monitoring](https://github.com/chrisreddington/timestamp/blob/main/docs/PERFORMANCE_MONITORING.md): Performance analysis and optimization guidelines
+- [Keyboard Shortcuts](https://github.com/chrisreddington/timestamp/blob/main/docs/KEYBOARD-SHORTCUTS.md): Complete keyboard shortcut reference
+
+## Development
+
+- [Contributing Guide](https://github.com/chrisreddington/timestamp/blob/main/CONTRIBUTING.md): How to contribute, development workflow, and code standards
+
+## Common Questions
+
+**How do the countdown modes differ?**
+- Local Time: Counts to a date in each viewer's timezone (e.g., New Year's Eve - each timezone celebrates separately)
+- Same Moment: Everyone counts to the same UTC instant (e.g., product launches - everyone sees the same countdown)
+- Timer: Fixed duration countdown starting when opened (e.g., Pomodoro sessions)
+
+**How do I share a countdown?**
+Every configuration generates a shareable URL automatically. Just copy the browser URL or use the Share button.
+
+**Does it work offline?**
+Yes! As a PWA, Timestamp works offline after your first visit. Install it from your browser for the best experience.
+
+**Can I create a theme?**
+Absolutely! Use `npm run theme create <name>` to scaffold a new theme. See the Theme Development Guide for details.
+
+## Features
+
+- [Timer Fullscreen Controls Spec](https://github.com/chrisreddington/timestamp/blob/main/docs/specs/SPEC-001-timer-fullscreen-controls.md): Specification for timer control interface
+- [PWA Instructions](https://github.com/chrisreddington/timestamp/blob/main/.github/instructions/pwa.instructions.md): Progressive web app development guidelines
+
+## Optional
+
+- [Code of Conduct](https://github.com/chrisreddington/timestamp/blob/main/CODE_OF_CONDUCT.md): Community guidelines and expectations
+- [Security Policy](https://github.com/chrisreddington/timestamp/blob/main/SECURITY.md): Vulnerability reporting and security practices
+- [License](https://github.com/chrisreddington/timestamp/blob/main/LICENSE): MIT License
+- [Mutation Testing Analysis](https://github.com/chrisreddington/timestamp/blob/main/docs/MUTATION-TESTING-ANALYSIS.md): Code quality analysis with Stryker
+
+## Internal Development Docs (for AI coding assistants)
+
+- [Copilot Instructions](https://github.com/chrisreddington/timestamp/blob/main/.github/copilot-instructions.md): Project-wide coding conventions, build commands, and patterns
+- [TypeScript Standards](https://github.com/chrisreddington/timestamp/blob/main/.github/instructions/typescript.instructions.md): TypeScript best practices and naming conventions
+- [Testing Standards](https://github.com/chrisreddington/timestamp/blob/main/.github/instructions/testing.instructions.md): Vitest and Playwright testing patterns
+- [Theme Instructions](https://github.com/chrisreddington/timestamp/blob/main/.github/instructions/themes.instructions.md): Theme architecture and lifecycle patterns
+- [Documentation Instructions](https://github.com/chrisreddington/timestamp/blob/main/.github/instructions/documentation.instructions.md): TSDoc and code documentation standards
+- [GitHub Actions Instructions](https://github.com/chrisreddington/timestamp/blob/main/.github/instructions/github-actions.instructions.md): CI/CD workflow patterns
+- [Complex Theme Patterns](https://github.com/chrisreddington/timestamp/blob/main/.github/instructions/complex-theme-patterns.instructions.md): Advanced patterns for complex themes

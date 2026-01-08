@@ -56,7 +56,7 @@ Orchestrates markdown documentation audits and sync with codebase. Coordinates S
 | **README** | `README.md`, `*/README.md` | All users |
 | **Instructions** | `.github/instructions/*.instructions.md` | AI agents |
 | **Copilot** | `.github/copilot-instructions.md` | GitHub Copilot |
-| **Guides** | `docs/guides/*.md` | Developers |
+| **Guides** | `docs/*.md` (flat guides like KEYBOARD-SHORTCUTS) | Developers |
 | **Specs** | `docs/specs/*.md` | Implementers |
 | **Plans** | `docs/plans/*.md` | Project tracking |
 | **Reference** | `docs/reference/*.md` | API/pattern reference |

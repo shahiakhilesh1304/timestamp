@@ -57,9 +57,29 @@ Timestamp is a Progressive Web App (PWA), which means you can install it from yo
 Wall-clock mode shows a day/night map with real-time solar position. You can see which cities are celebrating and which are waiting.
 
 ### ♿ Accessibility
-- Full keyboard navigation
+- Full keyboard navigation with shortcuts (see below)
 - Screen reader announcements for countdown updates (via orchestrator's `AccessibilityManager`)
 - Orchestrator provides accessibility hooks (`onAnimationStateChange`) and foundations (`reducedMotionManager`, `data-reduced-motion` attribute, container ARIA attributes) that themes implement to ensure consistent behavior across all themes
+
+### ⌨️ Keyboard Shortcuts
+
+Timer mode supports global keyboard shortcuts for hands-free control:
+
+> **See [Keyboard Shortcuts Guide](docs/KEYBOARD-SHORTCUTS.md) for complete documentation.**
+
+| Key | Action | Notes |
+|-----|--------|-------|
+| `Space` | Play/Pause toggle | Works in fullscreen and normal view |
+| `Enter` | Reset timer | Resets to original duration |
+| `R` | Reset timer | Case-insensitive alternative |
+| `Escape` | Exit fullscreen | Browser default, also supported |
+
+**Smart behavior**: Shortcuts are disabled when:
+- Typing in any text input or textarea
+- Modal dialogs are open (e.g., theme picker on the timer page)
+- Timer-only shortcuts are disabled when you're in wall-clock or absolute modes
+
+> 💡 **Fullscreen tip**: In timer mode, move your mouse in fullscreen to reveal timer controls alongside the exit button. They auto-hide after 3 seconds (or stay visible while hovering).
 
 
 ## Run Locally

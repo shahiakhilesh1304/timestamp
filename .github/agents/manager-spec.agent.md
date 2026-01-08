@@ -405,7 +405,7 @@ runSubagent("Specialist - Technical Writing",
    \`\`\`json
    {
      \"status\": \"approve\" | \"concern\" | \"blocker\",
-     \"docsImpacted\": [\"README.md\", \"docs/guides/...\"],
+     \"docsImpacted\": [\"README.md\", \"docs/GUIDE-NAME.md\"],
      \"newDocsNeeded\": [\"Guide for feature X\"],
      \"staleContent\": [\"Section Y in README\"],
      \"suggestions\": [\"Add AC for README update\"],

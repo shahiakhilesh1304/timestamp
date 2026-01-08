@@ -72,21 +72,24 @@ export async function waitForUrlChange(
 }
 
 /**
- * Navigate using browser back button and wait for navigation to complete.
- * 
+ * Navigate to a timer countdown with the specified duration.
+ *
  * @param page - Playwright page instance
+ * @param value - Duration value
+ * @param unit - Duration unit: 'seconds', 'minutes', or 'hours'
  */
-async function navigateBack(page: Page): Promise<void> {
-  await page.goBack();
-  await page.waitForLoadState('networkidle');
-}
+export async function navigateToTimerCountdown(
+  page: Page,
+  value: number,
+  unit: 'seconds' | 'minutes' | 'hours'
+): Promise<void> {
+  // Convert to seconds (the expected format)
+  const multipliers = { seconds: 1, minutes: 60, hours: 3600 };
+  const durationSeconds = value * multipliers[unit];
 
-/**
- * Navigate using browser forward button and wait for navigation to complete.
- * 
- * @param page - Playwright page instance
- */
-async function navigateForward(page: Page): Promise<void> {
-  await page.goForward();
-  await page.waitForLoadState('networkidle');
+  const url = buildDeepLinkUrl({ mode: 'timer', duration: String(durationSeconds) });
+  await page.goto(url);
+  // Wait for countdown display to be rendered
+  const { expect } = await import('@playwright/test');
+  await expect(page.getByTestId('countdown-display').first()).toBeAttached({ timeout: 10000 });
 }

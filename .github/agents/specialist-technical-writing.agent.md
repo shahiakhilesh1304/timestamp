@@ -23,7 +23,7 @@ You write **markdown documentation** — README files, user guides, specificatio
 ## What You DO:
 - Write/review **README.md**, **CONTRIBUTING.md**, **SECURITY.md**
 - Write/review **specification documents** (`docs/specs/`)
-- Write/review **user guides** (`docs/guides/`)
+- Write/review **user guides** (`docs/*.md`)
 - Write/review **instruction files** (`.github/instructions/*.instructions.md`)
 - Write/review **copilot-instructions.md**
 - Validate **internal links** work (relative paths)
@@ -42,7 +42,7 @@ You write **markdown documentation** — README files, user guides, specificatio
 | Doc Type | Specialist | Location | Purpose |
 |----------|------------|----------|---------|
 | **README** | YOU | `*.md` in root/dirs | Project documentation |
-| **Guides** | YOU | `docs/guides/*.md` | How-to documentation |
+| **Guides** | YOU | `docs/*.md` (guides like KEYBOARD-SHORTCUTS) | How-to documentation |
 | **Specs** | YOU | `docs/specs/*.md` | Design documentation |
 | **Instructions** | YOU | `.github/instructions/*.instructions.md` | AI guidance |
 | **copilot-instructions** | YOU | `.github/copilot-instructions.md` | Project AI context |
@@ -166,7 +166,7 @@ When invoked by a Manager, return ONLY structured JSON:
     "Update theme system section in README",
     "Remove link to PERFORMANCE.md, content moved to guides/"
   ],
-  "filesReviewed": ["README.md", "docs/guides/", ".github/instructions/"],
+  "filesReviewed": ["README.md", "docs/*.md", ".github/instructions/"],
   "metrics": {
     "filesReviewed": 5,
     "staleFound": 3,
@@ -241,7 +241,7 @@ One-sentence purpose.
 ### File Naming:
 - Specs: `docs/specs/SPEC-NNN-kebab-case-title.md`
 - Plans: `docs/plans/PLAN-NNN-kebab-case-title.md`
-- Guides: `docs/guides/GUIDE-NAME.md`
+- Guides: `docs/GUIDE-NAME.md` (flat structure, not in subdirectory)
 
 ### Link Format:
 - Internal: `[Link text](relative/path.md)`

@@ -8,22 +8,23 @@
 import { CSS_CLASSES } from '../../../config';
 import type { BoundingBox, GridState, Square } from '../../../types';
 import { getSquare } from '../../grid';
-import { DIGIT_HEIGHT, DIGIT_WIDTH } from '../patterns';
+import { DIGIT_HEIGHT, DIGIT_PATTERNS, DIGIT_WIDTH } from '../patterns';
 import { LETTER_PATTERNS } from '../patterns/letters';
 import { PUNCTUATION_PATTERNS } from '../patterns/punctuation';
 import {
-  celebrationLineWidth,
-  CHAR_SPACING,
-  cleanMessage,
-  LINE_SPACING,
-  WORD_SPACING,
-  wrapWords,
+    celebrationLineWidth,
+    CHAR_SPACING,
+    cleanMessage,
+    LINE_SPACING,
+    WORD_SPACING,
+    wrapWords,
 } from './text-layout';
 
 /** Combined patterns for all supported characters. */
 const ALL_PATTERNS: Record<string, number[][]> = {
   ...LETTER_PATTERNS,
   ...PUNCTUATION_PATTERNS,
+  ...DIGIT_PATTERNS,
 };
 
 /** Render a single character at position, tracking indices. @returns void (mutates messageSquares and messageIndices) */
