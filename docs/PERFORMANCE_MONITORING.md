@@ -87,7 +87,7 @@ unsubscribe();
 
 ## E2E Performance Tests
 
-Performance tests are in `e2e/performance.spec.ts` and `e2e/contribution-graph-performance.spec.ts`. Run them with:
+Performance tests are in `e2e/performance-profiling.spec.ts`. Run them with:
 
 ```bash
 # Performance tests only (long-running, tagged with @perf)

@@ -9,9 +9,13 @@
  * - All themes (audit): `npm run test:e2e:perf:all`
  * - Specific theme: `PERF_THEME=contribution-graph npm run test:e2e:perf`
  *
+ * **Test Categories:**
+ * - `@perf-quick`: Fast tests (10-30s each) - can run in parallel
+ * - `@perf-deep`: Deep profiling (60s+) - run sequentially for accuracy
+ *
  * @remarks
  * Tests are tagged with @perf and excluded from the default E2E run.
- * They require significantly longer timeouts (2-6 minutes per test).
+ * Deep profiling tests require significantly longer timeouts (2-6 minutes per test).
  */
 
 import { expect, test } from '@playwright/test';
@@ -48,9 +52,35 @@ test.beforeAll(async () => {
   await ensureProfileOutputDir();
 });
 
+// =============================================================================
+// INITIAL LOAD PERFORMANCE
+// =============================================================================
+
+test.describe('Landing Page Performance @perf @perf-quick', () => {
+  test('landing page loads within budget', async ({ page }) => {
+    const start = Date.now();
+    await page.goto('/');
+    await expect(page.getByTestId('landing-start-button')).toBeVisible({ timeout: 10000 });
+    const loadTime = Date.now() - start;
+
+    console.log(`Landing page load time: ${loadTime}ms`);
+    expect(loadTime).toBeLessThan(3500); // 3.5s budget
+  });
+
+  test('LCP candidate has fetchpriority="high"', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.getByTestId('landing-start-button')).toBeVisible({ timeout: 10000 });
+
+    // First theme card should use <img> with fetchpriority="high" for LCP optimization
+    const lcpImage = page.locator('.theme-selector-card-preview-img').first();
+    await expect(lcpImage).toBeVisible();
+    await expect(lcpImage).toHaveAttribute('fetchpriority', 'high');
+  });
+});
+
 // Generate tests for each theme
 for (const themeId of THEMES_TO_TEST) {
-  test.describe(`${themeId} CPU Profiling @perf`, () => {
+  test.describe(`${themeId} CPU Profiling @perf @perf-deep`, () => {
     test(`profile CPU usage during ${themeId} countdown animation`, async ({ page }) => {
       // Start CDP session for profiling
       const client = await page.context().newCDPSession(page);
@@ -133,7 +163,7 @@ for (const themeId of THEMES_TO_TEST) {
     });
   });
 
-  test.describe(`${themeId} Memory Leak Detection @perf`, () => {
+  test.describe(`${themeId} Memory Leak Detection @perf @perf-deep`, () => {
     test(`detect memory leaks during rapid ${themeId} theme switches`, async ({ page }) => {
       const client = await page.context().newCDPSession(page);
       await client.send('HeapProfiler.enable');
@@ -231,7 +261,7 @@ for (const themeId of THEMES_TO_TEST) {
     });
   });
 
-  test.describe(`${themeId} Render Counting @perf`, () => {
+  test.describe(`${themeId} Render Counting @perf @perf-deep`, () => {
     test(`count paint operations during ${themeId} countdown`, async ({ page }) => {
       let paintCount = 0;
       const layoutShifts: LayoutShift[] = [];
@@ -387,7 +417,7 @@ for (const themeId of THEMES_TO_TEST) {
     });
   });
 
-  test.describe(`${themeId} Countdown Completion @perf`, () => {
+  test.describe(`${themeId} Countdown Completion @perf @perf-deep`, () => {
     test(`profile 1-minute ${themeId} countdown completion cycle`, async ({ page }) => {
       const metrics = {
         paintEvents: 0,
@@ -553,7 +583,7 @@ for (const themeId of THEMES_TO_TEST) {
     });
   });
 
-  test.describe(`${themeId} Long Task Detection @perf`, () => {
+  test.describe(`${themeId} Long Task Detection @perf @perf-deep`, () => {
     test(`detect long tasks blocking main thread in ${themeId}`, async ({ page }) => {
       const longTasks: LongTask[] = [];
 
@@ -618,3 +648,190 @@ for (const themeId of THEMES_TO_TEST) {
     });
   });
 }
+
+// =============================================================================
+// VIEWPORT VARIANCE TESTS (Resolution-Specific Performance)
+// =============================================================================
+
+/**
+ * Test countdown performance across different viewport sizes.
+ * 
+ * Quick checks that performance criteria are met on:
+ * - Mobile (375x667)
+ * - Desktop HD (1920x1080) 
+ * - Desktop 4K (3840x2160)
+ * 
+ * This catches resolution-specific performance regressions (e.g., excessive
+ * node count at 4K, animation jank on mobile).
+ */
+for (const themeId of THEMES_TO_TEST) {
+  test.describe(`${themeId} Viewport Variance @perf @perf-quick`, () => {
+    const VIEWPORTS = [
+      { name: 'Mobile', width: 375, height: 667, maxDomNodes: 8000 },
+      { name: 'Desktop HD', width: 1920, height: 1080, maxDomNodes: 10000 },
+      { name: 'Desktop 4K', width: 3840, height: 2160, maxDomNodes: 15000 },
+    ] as const;
+
+    for (const viewport of VIEWPORTS) {
+      test(`${viewport.name} (${viewport.width}x${viewport.height}) maintains performance on ${themeId}`, async ({ page }) => {
+        // Set viewport BEFORE navigation
+        await page.setViewportSize({ width: viewport.width, height: viewport.height });
+
+        const isoTarget = getTargetDate();
+        await page.goto(buildThemeUrl(themeId, isoTarget));
+        await page.waitForSelector(COUNTDOWN_DISPLAY_SELECTOR, { timeout: 10000 });
+
+        // Take baseline memory snapshot
+        const baselineSnapshot = await takeMemorySnapshot(page, 'baseline');
+
+        // Let animation run for 10 seconds (quick check)
+        await page.waitForTimeout(10000);
+
+        // Take final snapshot
+        const finalSnapshot = await takeMemorySnapshot(page, 'final');
+
+        // Calculate memory growth
+        const memoryGrowth = calculateMemoryGrowth(baselineSnapshot, finalSnapshot);
+
+        // Check DOM node count
+        const domNodeCount = await page.evaluate(() => document.getElementsByTagName('*').length);
+
+        console.log(`\n=== ${viewport.name} Performance Summary ===`);
+        console.log(`Viewport: ${viewport.width}x${viewport.height}`);
+        console.log(`DOM nodes: ${domNodeCount}`);
+        console.log(`Memory growth: ${memoryGrowth?.absoluteGrowthMB.toFixed(2) ?? 'N/A'} MB`);
+
+        // Assertions
+        expect(domNodeCount).toBeLessThan(viewport.maxDomNodes);
+        
+        // Memory growth should be minimal (under 5MB in 10 seconds)
+        if (memoryGrowth) {
+          expect(memoryGrowth.absoluteGrowthMB).toBeLessThan(5);
+        }
+      });
+    }
+  });
+}
+
+// =============================================================================
+// MOBILE MENU PERFORMANCE
+// =============================================================================
+
+for (const themeId of THEMES_TO_TEST) {
+  test.describe(`${themeId} Mobile Menu @perf @perf-quick`, () => {
+    test(`mobile menu opens and closes quickly on ${themeId}`, async ({ page }) => {
+      // Set mobile viewport
+      await page.setViewportSize({ width: 375, height: 667 });
+
+      const isoTarget = getTargetDate();
+      await page.goto(buildThemeUrl(themeId, isoTarget));
+      await page.waitForSelector(COUNTDOWN_DISPLAY_SELECTOR, { timeout: 10000 });
+
+      // Wait for mobile menu button
+      await page.waitForSelector('[data-testid="mobile-menu-button"]', { timeout: 5000 });
+      const menuButton = page.getByTestId('mobile-menu-button');
+      await expect(menuButton).toBeVisible();
+
+      // Measure menu open time
+      const openStart = Date.now();
+      await menuButton.click();
+      await expect(page.getByTestId('mobile-menu-overlay')).toBeVisible();
+      const openDuration = Date.now() - openStart;
+
+      console.log(`Menu open duration: ${openDuration}ms`);
+      expect(openDuration).toBeLessThan(1100); // 1.1s budget
+
+      // Measure menu close time
+      const closeStart = Date.now();
+      await page.getByTestId('mobile-menu-close').click();
+      await expect(page.getByTestId('mobile-menu-overlay')).not.toBeVisible();
+      const closeDuration = Date.now() - closeStart;
+
+      console.log(`Menu close duration: ${closeDuration}ms`);
+      expect(closeDuration).toBeLessThan(1100); // 1.1s budget
+    });
+  });
+}
+
+// =============================================================================
+// STRESS TESTING
+// =============================================================================
+
+for (const themeId of THEMES_TO_TEST) {
+  const alternateTheme = getAlternateTheme(themeId);
+
+  test.describe(`${themeId} Stress Testing @perf @perf-quick`, () => {
+    test(`handles rapid theme switches without memory leaks (${themeId})`, async ({ page }) => {
+      const isoTarget = getTargetDate();
+      await page.goto(buildThemeUrl(themeId, isoTarget));
+      await page.waitForSelector(COUNTDOWN_DISPLAY_SELECTOR, { timeout: 10000 });
+
+      // Take baseline snapshot
+      const baselineSnapshot = await takeMemorySnapshot(page, 'baseline');
+
+      // Rapidly switch themes 5 times
+      for (let i = 0; i < 5; i++) {
+        const targetTheme = i % 2 === 0 ? alternateTheme : themeId;
+        await page.getByTestId('theme-switcher').click();
+        await expect(page.getByTestId('theme-modal')).toBeVisible();
+        await page.getByTestId(`theme-card-${targetTheme}`).click();
+        await expect(page.getByTestId('theme-modal')).not.toBeVisible({ timeout: 5000 });
+        await page.waitForFunction(
+          () => document.querySelectorAll('[data-testid="countdown-display"]').length === 1,
+          { timeout: 5000 }
+        );
+      }
+
+      // Take final snapshot
+      const finalSnapshot = await takeMemorySnapshot(page, 'final');
+
+      const memoryGrowth = calculateMemoryGrowth(baselineSnapshot, finalSnapshot);
+      console.log(`Memory growth after 5 rapid theme switches: ${memoryGrowth?.absoluteGrowthMB.toFixed(2) ?? 'N/A'} MB`);
+
+      // Should not have significant memory growth
+      if (memoryGrowth) {
+        expect(memoryGrowth.absoluteGrowthMB).toBeLessThan(10); // Allow more headroom for rapid switches
+      }
+
+      // DOM should be stable
+      const domNodeCount = await page.evaluate(() => document.getElementsByTagName('*').length);
+      expect(domNodeCount).toBeLessThan(11000);
+    });
+
+    test(`handles rapid resize without crashing (${themeId})`, async ({ page }) => {
+      const isoTarget = getTargetDate();
+      await page.setViewportSize({ width: 1280, height: 720 });
+      await page.goto(buildThemeUrl(themeId, isoTarget));
+      await page.waitForSelector(COUNTDOWN_DISPLAY_SELECTOR, { timeout: 10000 });
+
+      // Rapidly resize through different viewports
+      const viewports = [
+        { width: 1280, height: 720 },
+        { width: 375, height: 667 },
+        { width: 768, height: 1024 },
+        { width: 1920, height: 1080 },
+        { width: 414, height: 896 },
+        { width: 2560, height: 1440 },
+      ];
+
+      for (const viewport of viewports) {
+        await page.setViewportSize(viewport);
+        await page.waitForFunction(
+          () => document.querySelectorAll('[data-testid="countdown-display"]').length === 1,
+          { timeout: 4000 }
+        );
+      }
+
+      // App should still be functional
+      await expect(page.getByTestId('countdown-display')).toBeVisible();
+      
+      // DOM count should be reasonable
+      const domNodeCount = await page.evaluate(() => document.getElementsByTagName('*').length);
+      expect(domNodeCount).toBeLessThan(11000);
+
+      console.log(`Final DOM node count after rapid resize: ${domNodeCount}`);
+    });
+  });
+}
+
+

@@ -17,6 +17,8 @@
     "test:e2e": "playwright test --project=chromium --timeout=15000 --retries=0 --workers=4 --grep-invert '@perf' --reporter=dot",
     "test:e2e:cross-browser": "playwright test --timeout=30000 --retries=1 --grep-invert '@perf' --reporter=dot",
     "test:e2e:perf": "playwright test --project=chromium --timeout=360000 --retries=0 --workers=1 --grep '@perf' --reporter=list",
+    "test:e2e:perf:quick": "playwright test --project=chromium --timeout=60000 --retries=0 --workers=4 --grep '@perf-quick' --reporter=list",
+    "test:e2e:perf:deep": "playwright test --project=chromium --timeout=360000 --retries=0 --workers=1 --grep '@perf-deep' --reporter=list",
     "test:e2e:perf:all": "playwright test --project=chromium --timeout=360000 --retries=0 --workers=1 --grep '@perf' --reporter=list",
     "test:e2e:full": "playwright test --reporter=dot",
     "typecheck": "tsc --noEmit",

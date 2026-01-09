@@ -16,13 +16,13 @@ import {
 } from './state';
 
 describe('calculateGridDimensions', () => {
-  it('should calculate dimensions for standard viewport', () => {
+  it('should use base square size for standard 1920px viewport', () => {
     const result = calculateGridDimensions(1920, 1080);
 
     expect(result.cols).toBeGreaterThan(0);
     expect(result.rows).toBeGreaterThan(0);
-    expect(result.squareSize).toBeGreaterThanOrEqual(GRID_CONFIG.minSquareSize);
-    expect(result.squareSize).toBeLessThanOrEqual(GRID_CONFIG.maxSquareSize);
+    // At 1920px, scale factor is 1, so squareSize equals baseSquareSize
+    expect(result.squareSize).toBe(GRID_CONFIG.baseSquareSize);
     expect(result.gap).toBeGreaterThanOrEqual(0);
   });
 
@@ -31,9 +31,9 @@ describe('calculateGridDimensions', () => {
     const result = calculateGridDimensions(4000, 3000);
 
     // Squares scale based on viewport width (base 16px at 1920px)
-    // 4000 / 1920 ≈ 2.08x, so squares should be larger than 16px
-    expect(result.squareSize).toBeGreaterThan(GRID_CONFIG.maxSquareSize);
-    expect(result.squareSize).toBeLessThanOrEqual(32); // Max clamped at 32px
+    // 4000 / 1920 ≈ 2.08x, so squares should be larger than baseSquareSize
+    expect(result.squareSize).toBeGreaterThan(GRID_CONFIG.baseSquareSize);
+    expect(result.squareSize).toBeLessThanOrEqual(GRID_CONFIG.maxSquareSize);
     
     // Gap should still be proportional to square size
     expect(result.gap).toBeGreaterThan(0);

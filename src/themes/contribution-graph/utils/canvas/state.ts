@@ -98,10 +98,10 @@ export function calculateGridDimensions(
   // This keeps the visual density consistent and limits node count for performance
   // Base: 16px at 1920px width, scales proportionally
   const scaleFactor = Math.max(1, viewportWidth / 1920);
-  let squareSize = Math.round(GRID_CONFIG.maxSquareSize * scaleFactor);
+  let squareSize = Math.round(GRID_CONFIG.baseSquareSize * scaleFactor);
   
   // Clamp to reasonable bounds
-  squareSize = Math.max(GRID_CONFIG.minSquareSize, Math.min(squareSize, 32));
+  squareSize = Math.max(GRID_CONFIG.minSquareSize, Math.min(squareSize, GRID_CONFIG.maxSquareSize));
   
   let gap = Math.round(squareSize * GRID_CONFIG.gapRatio);
 

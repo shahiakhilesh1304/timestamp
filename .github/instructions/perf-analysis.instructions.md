@@ -87,7 +87,7 @@ interface PerfMonitor {
 
 - `src/core/utils/perf-monitor.ts` - Monitoring API
 - `src/core/utils/perf-types.ts` - Type definitions
-- `e2e/performance.spec.ts` - E2E performance tests
+- `e2e/performance-profiling.spec.ts` - Comprehensive E2E performance tests with CDP profiling
 - `.github/instructions/complex-theme-patterns.instructions.md` - Advanced theme patterns and performance
 
 ## Reporting Findings

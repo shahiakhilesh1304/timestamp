@@ -7,6 +7,7 @@ import {
     createAmbientState,
     getAmbientIntensity,
     getTickInterval,
+    invalidateAmbientCache,
     manageAmbientActivity,
     setPhase,
     startAmbient,
@@ -25,6 +26,34 @@ describe('createAmbientState', () => {
     expect(state.phase).toBe('calm');
     expect(state.isRunning).toBe(false);
     expect(state.nextTickTime).toBe(0);
+  });
+
+  it('should initialize cache fields to null', () => {
+    const state = createAmbientState();
+
+    expect(state.availableSquaresCache).toBeNull();
+    expect(state.lastDigitBoundsHash).toBeNull();
+  });
+});
+
+describe('invalidateAmbientCache', () => {
+  it('should clear available squares cache', () => {
+    const state = createAmbientState();
+    state.availableSquaresCache = [1, 2, 3];
+    state.lastDigitBoundsHash = 'test-hash';
+
+    invalidateAmbientCache(state);
+
+    expect(state.availableSquaresCache).toBeNull();
+    expect(state.lastDigitBoundsHash).toBeNull();
+  });
+
+  it('should be safe to call on fresh state', () => {
+    const state = createAmbientState();
+
+    // Should not throw
+    expect(() => invalidateAmbientCache(state)).not.toThrow();
+    expect(state.availableSquaresCache).toBeNull();
   });
 });
 

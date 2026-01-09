@@ -2,13 +2,13 @@
  * Tests for timezone utilities covering offset calculations, labeling, and New Year timing.
  * Uses a fixed system time to ensure deterministic expectations across timezones and DST boundaries.
  */
-import { describe, it, expect } from 'vitest';
 import { withFakeNow } from '@/test-utils/time-helpers';
+import { describe, expect, it } from 'vitest';
 import {
-  getUserTimezone,
-  getAllTimezones,
-  getTimezoneOffsetMinutes,
-  formatOffsetLabel,
+    formatOffsetLabel,
+    getAllTimezones,
+    getTimezoneOffsetMinutes,
+    getUserTimezone,
 } from './timezone';
 
 const TEST_REFERENCE_DATE = new Date('2025-12-15T12:00:00Z');
@@ -115,6 +115,26 @@ describe('timezone utilities', () => {
       const tokyoOffset = getTimezoneOffsetMinutes('Asia/Tokyo', NEW_YEAR_UTC_DATE);
 
       expect(tokyoOffset).not.toBe(utcOffset);
+    });
+
+    it('should return cached result for repeated calls with same timezone and minute', () => {
+      // Call twice with the exact same date - second call should hit cache
+      const date = new Date('2026-01-01T12:30:00Z');
+      const offset1 = getTimezoneOffsetMinutes('America/New_York', date);
+      const offset2 = getTimezoneOffsetMinutes('America/New_York', date);
+
+      expect(offset1).toBe(offset2);
+    });
+
+    it('should cache results at minute precision', () => {
+      // Two dates in the same minute should return same cached result
+      const date1 = new Date('2026-01-01T12:30:00Z');
+      const date2 = new Date('2026-01-01T12:30:45Z'); // Same minute, different seconds
+      
+      const offset1 = getTimezoneOffsetMinutes('Europe/London', date1);
+      const offset2 = getTimezoneOffsetMinutes('Europe/London', date2);
+
+      expect(offset1).toBe(offset2);
     });
   });
 

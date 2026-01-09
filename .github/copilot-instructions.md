@@ -93,7 +93,9 @@ timestamp/
 - `npm run test` - Run unit tests with Vitest
 - `npm run test:e2e` - **Default**: Fast E2E tests (chromium only, excludes long-running @perf tests)
 - `npm run test:e2e:cross-browser` - Cross-browser E2E tests (chromium, webkit, mobile)
-- `npm run test:e2e:perf` - Performance profiling tests (long-running, chromium only)
+- `npm run test:e2e:perf` - All performance tests (quick + deep)
+- `npm run test:e2e:perf:quick` - Quick perf tests (10s each, parallel workers)
+- `npm run test:e2e:perf:deep` - Deep profiling tests (60s+ each, sequential)
 - `npm run test:e2e:perf:all` - Performance profiling for ALL themes (audit mode)
 - `PERF_THEME=<id> npm run test:e2e:perf` - Performance profiling for a SPECIFIC theme
 - `npm run test:e2e:full` - Complete E2E suite including performance tests (for CI)

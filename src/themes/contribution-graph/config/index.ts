@@ -52,16 +52,13 @@ export const CONTRIBUTION_GRAPH_CONFIG: ThemeConfig = {
  */
 export const GRID_CONFIG = {
   minSquareSize: 4,
-  maxSquareSize: 16,
+  /** Base square size at 1920px viewport. Scales proportionally for larger screens. */
+  baseSquareSize: 16,
+  /** Maximum square size (cap for very large screens). */
+  maxSquareSize: 32,
   gapRatio: 0.2,
   edgePadding: 4,
 } as const;
-
-/**
- * Maximum number of grid squares to prevent performance issues.
- * If calculated grid exceeds this, dimensions are scaled down.
- */
-export const MAX_NODES = 5000;
 
 // =============================================================================
 // LAYOUT CONFIGURATION
@@ -236,8 +233,6 @@ export function getWeightedIntensity(): number {
 // =============================================================================
 
 export {
-  type ActivityPhase,
-  type ActivityPhaseValues,
   BATCH_OVERLAP_FRACTION,
   clearActivityStageCache,
   getActivityPhase,
@@ -246,5 +241,7 @@ export {
   getOverlapTickIntervalMs,
   getPhaseConfig,
   getPhaseConfigByName,
-  MAX_STAGGER_FRACTION} from './activity-stages';
+  MAX_STAGGER_FRACTION, type ActivityPhase,
+  type ActivityPhaseValues
+} from './activity-stages';
 
