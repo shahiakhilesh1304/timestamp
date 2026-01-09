@@ -56,7 +56,9 @@ export const AKHIL_SQUARE_SHADOW_CONFIG: ThemeConfig = {
   publishedDate: '2026-01-08',
   author: 'shahiakhilesh1304',
   tags: ['countdown', 'shadow', 'sun', 'moon', 'celestial'],
-  dependencies: [],
+  dependencies: [
+    { name: 'suncalc', url: 'https://github.com/mourner/suncalc' },
+  ],
   supportsWorldMap: false, // Theme has its own sky visualization
   availableInIssueTemplate: true,
   optionalComponents: {

@@ -4,14 +4,9 @@ This theme uses the following third-party assets and libraries.
 
 ## Libraries
 
-<!-- Add any npm packages your theme depends on -->
-<!-- Example:
 | Name | Source URL | License | Description |
 |------|------------|---------|-------------|
-| my-library | [owner/my-library](https://github.com/owner/my-library) | MIT | Description of what it does |
--->
-
-This theme does not use any external npm packages beyond the core project dependencies.
+| suncalc | [mourner/suncalc](https://github.com/mourner/suncalc) | BSD-2-Clause | Sun position and sunlight phases calculator for the Shadow Calculator feature |
 
 ## Visual Design
 
