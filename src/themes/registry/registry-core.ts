@@ -10,6 +10,7 @@
 
 import type { LandingPageRendererFactory, ThemeColors, ThemeConfig, ThemeDependency, TimePageRenderer } from '@core/types';
 
+import { AKHIL_SQUARE_SHADOW_CONFIG } from '../akhil-square-shadow/config';
 import { CONTRIBUTION_GRAPH_CONFIG } from '../contribution-graph/config';
 // Import theme configs for colors (lightweight imports - no heavy dependencies)
 import { FIREWORKS_CONFIG } from '../fireworks/config';
@@ -79,9 +80,19 @@ const loadContributionGraphTheme = async (): Promise<LoadedThemeModule> => {
   };
 };
 
+const loadAkhilSquareShadowTheme = async (): Promise<LoadedThemeModule> => {
+  const module = await import('../akhil-square-shadow');
+  return {
+    timePageRenderer: module.akhilSquareShadowTimePageRenderer,
+    landingPageRenderer: module.akhilSquareShadowLandingPageRenderer,
+    config: module.AKHIL_SQUARE_SHADOW_CONFIG,
+  };
+};
+
 // Stryker restore all
 
 export const THEME_REGISTRY = {
+  'akhil-square-shadow': createRegistryEntry(AKHIL_SQUARE_SHADOW_CONFIG, loadAkhilSquareShadowTheme),
   'contribution-graph': createRegistryEntry(CONTRIBUTION_GRAPH_CONFIG, loadContributionGraphTheme),
   fireworks: createRegistryEntry(FIREWORKS_CONFIG, loadFireworksTheme),
 } as const satisfies Record<string, ThemeRegistryEntry>;
