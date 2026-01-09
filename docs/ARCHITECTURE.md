@@ -505,7 +505,10 @@ npm run validate:iteration  # Full validation
 |---------|---------|
 | `npm run dev` | Start development server |
 | `npm run test` | Run unit tests |
-| `npm run test:e2e:fast` | Run E2E tests (fast, for development) |
+| `npm run test:e2e` | Run E2E tests (chromium, excludes @perf) |
+| `npm run test:e2e:cross-browser` | E2E tests across all browsers |
+| `npm run test:e2e:perf` | Performance profiling tests (long-running) |
+| `npm run test:e2e:full` | Complete E2E suite including @perf tests |
 | `npm run validate:iteration` | Full validation (before commits) |
 | `npm run create-theme <name>` | Scaffold a new theme |
 

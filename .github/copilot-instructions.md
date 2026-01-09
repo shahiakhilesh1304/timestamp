@@ -91,15 +91,21 @@ timestamp/
 - `npm run dev` - Start development server (default port: 5173)
 - `npm run build` - Build for production
 - `npm run test` - Run unit tests with Vitest
-- `npm run test:e2e` - Run ALL E2E tests with Playwright (required for final validation)
-- `npm run test:e2e:fast` - Fast E2E iteration (single browser, no retries, short timeout)
+- `npm run test:e2e` - **Default**: Fast E2E tests (chromium only, excludes long-running @perf tests)
+- `npm run test:e2e:cross-browser` - Cross-browser E2E tests (chromium, webkit, mobile)
+- `npm run test:e2e:perf` - All performance tests (quick + deep)
+- `npm run test:e2e:perf:quick` - Quick perf tests (10s each, parallel workers)
+- `npm run test:e2e:perf:deep` - Deep profiling tests (60s+ each, sequential)
+- `npm run test:e2e:perf:all` - Performance profiling for ALL themes (audit mode)
+- `PERF_THEME=<id> npm run test:e2e:perf` - Performance profiling for a SPECIFIC theme
+- `npm run test:e2e:full` - Complete E2E suite including performance tests (for CI)
 - `npm run theme <command>` - Unified theme CLI for validation and sync operations
 - `npm run validate:scripts` - Type-check and lint build scripts (scripts/ folder)
 - `npm run typecheck:scripts` - Type-check scripts only (uses tsconfig.scripts.json)
 - `npm run lint:scripts` - Lint scripts only
 - `npm run lint:all` - Lint both src/ and scripts/
-- `npm run validate:iteration` - **Agents use this**: Full validation with fast E2E tests
-- `npm run validate:full` - Complete validation with full E2E suite (human-triggered)
+- `npm run validate:iteration` - **Agents use this**: Full validation with fast E2E tests (excludes @perf)
+- `npm run validate:full` - Complete validation with full E2E suite including @perf tests (human-triggered)
 
 > **Note**: E2E tests automatically sync fixtures before running (`pretest:e2e` hook).
 > CI uses `npm run theme sync:fixtures -- --check` to validate the committed file is current.
@@ -136,17 +142,31 @@ npm run theme sync -- --check
 
 > **📌 TESTING STANDARDS**: See [testing.instructions.md](.github/instructions/testing.instructions.md) for the complete testing guide including test type boundaries, locator strategies, assertion patterns, and anti-patterns.
 
-**Agents MUST use fast mode:**
+**Test Command Reference:**
 ```bash
-# ALWAYS use fast mode - chromium only, parallel workers, 15s timeout, 0 retries
-npm run test:e2e:fast
+# Default fast mode (agents should use this)
+npm run test:e2e                    # Chromium only, excludes @perf tests, 15s timeout
 
-# Fast mode with filtering
-npm run test:e2e:fast -- --grep "theme switching"
+# Cross-browser testing (pre-merge validation)
+npm run test:e2e:cross-browser     # All browsers, excludes @perf tests
+
+# Performance profiling (separate workflow)
+npm run test:e2e:perf              # Long-running CPU/memory profiling, 6min timeout
+npm run test:e2e:perf:all          # Audit all themes
+PERF_THEME=fireworks npm run test:e2e:perf  # Specific theme only
+
+# Complete suite (CI only)
+npm run test:e2e:full              # All tests including @perf, all browsers
+
+# With filtering
+npm run test:e2e -- --grep "theme switching"
 ```
 
-> ⚠️ **CRITICAL**: Agents must ONLY run `npm run test:e2e:fast`, NEVER `npm run test:e2e`.
-> The full E2E suite takes too long for interactive development. CI handles full browser matrix testing.
+> ⚠️ **IMPORTANT**: 
+> - Agents should use `npm run test:e2e` (fast, excludes performance tests)
+> - Performance tests are tagged with `@perf` and run separately
+> - Use `PERF_THEME=<id>` to run perf tests for a specific theme
+> - CI runs full suite with `test:e2e:full` across all browsers
 
 **For final validation (human-triggered only):**
 ```bash
@@ -201,7 +221,7 @@ npm run validate:full
 3. `lint` - ESLint code style compliance
 4. `test` - Unit tests with Vitest
 5. `build` - Production build verification
-6. `test:e2e:fast` or `test:e2e` - E2E tests (fast or full)
+6. `test:e2e` or `test:e2e:full` - E2E tests (fast chromium or full suite)
 
 > ⚠️ **This is non-negotiable.** Do NOT mark work as complete until validation passes.
 > If any check fails, diagnose and fix before proceeding.

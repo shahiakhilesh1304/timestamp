@@ -3,8 +3,12 @@ import { expect, test, type Page } from '@playwright/test';
 const waitForLanding = async (page: Page) => {
   await expect(page.getByTestId('landing-page')).toBeVisible();
   // Wait for background to render (async theme loading)
-  // Landing page uses same squares as countdown theme
-  await page.waitForSelector('.contribution-graph-square, .star', { timeout: 5000 });
+  // Canvas-based themes use canvas, DOM-based themes use children
+  await page.waitForFunction(() => {
+    const bg = document.querySelector('[data-testid="landing-theme-background"]');
+    if (!bg) return false;
+    return bg.querySelector('canvas') !== null || bg.children.length > 0;
+  }, { timeout: 5000 });
 };
 
 test.describe('Landing Page', () => {
@@ -60,10 +64,12 @@ test.describe('Landing Page', () => {
     await page.goto('/');
     await waitForLanding(page);
 
-      const background = page.getByTestId('landing-theme-background');
-      await expect(background).toHaveAttribute('data-theme-id', 'contribution-graph');
-    const contributionSquares = await page.locator('.contribution-graph-square').count();
-    expect(contributionSquares).toBeGreaterThan(0);
+    const background = page.getByTestId('landing-theme-background');
+    await expect(background).toHaveAttribute('data-theme-id', 'contribution-graph');
+    
+    // Canvas-based themes have a canvas element
+    const canvas = await background.locator('canvas').count();
+    expect(canvas).toBe(1);
 
     // Wait for theme card to be visible and scroll into view if needed
     const fireworksCard = page.getByTestId('theme-card-fireworks');
@@ -72,14 +78,14 @@ test.describe('Landing Page', () => {
     await fireworksCard.click();
 
     // Wait for theme background to update (async theme loading)
-      await expect(background).toHaveAttribute('data-theme-id', 'fireworks');
+    await expect(background).toHaveAttribute('data-theme-id', 'fireworks');
     
     // Wait for stars to render
     await page.waitForSelector('.landing-star', { timeout: 5000, state: 'attached' });
 
-    // GitHub squares should be cleaned up
-    const contributionSquaresAfter = await page.locator('.contribution-graph-square').count();
-    expect(contributionSquaresAfter).toBe(0);
+    // Canvas should be cleaned up
+    const canvasAfter = await background.locator('canvas').count();
+    expect(canvasAfter).toBe(0);
 
     // Fireworks stars should be visible
     const stars = await page.locator('.landing-star').count();

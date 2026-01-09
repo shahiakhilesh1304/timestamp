@@ -5,8 +5,8 @@
  * To debug, set onConsoleLog to undefined in vitest.config.ts.
  */
 
-import { vi, beforeEach, afterEach } from 'vitest';
 import { injectTemplates, removeTemplates } from '@/test-utils/templates';
+import { afterEach, beforeEach, vi } from 'vitest';
 
 (globalThis as unknown as { __PROFILING__: boolean }).__PROFILING__ = true;
 
@@ -52,6 +52,15 @@ Object.defineProperty(window, 'scrollTo', {
   value: vi.fn(),
 });
 
+// Mock ResizeObserver for jsdom environment (used by canvas-based renderers)
+class MockResizeObserver {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+  constructor(_callback: ResizeObserverCallback) {}
+}
+vi.stubGlobal('ResizeObserver', MockResizeObserver);
+
 // Mock canvas getContext to suppress jsdom warnings
 HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue({
   fillRect: vi.fn(),
@@ -64,10 +73,15 @@ HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue({
   beginPath: vi.fn(),
   moveTo: vi.fn(),
   lineTo: vi.fn(),
+  closePath: vi.fn(),
   stroke: vi.fn(),
   fill: vi.fn(),
   arc: vi.fn(),
   measureText: vi.fn().mockReturnValue({ width: 0 }),
   fillText: vi.fn(),
+  setTransform: vi.fn(),
+  quadraticCurveTo: vi.fn(),
+  globalAlpha: 1,
+  fillStyle: '',
   canvas: { width: 0, height: 0 },
 }) as unknown as typeof HTMLCanvasElement.prototype.getContext;

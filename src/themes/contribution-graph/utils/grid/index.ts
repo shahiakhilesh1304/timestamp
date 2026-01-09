@@ -6,13 +6,11 @@
  */
 
 import {
-  CHAR_SPACING,
-  GRID_CONFIG,
-  LINE_SPACING,
-  MAX_NODES,
+    CHAR_SPACING,
+    GRID_CONFIG,
 } from '../../config';
 import type { GridState, Square } from '../../types';
-import { DIGIT_HEIGHT, DIGIT_WIDTH } from '../ui/patterns';
+import { DIGIT_WIDTH } from '../ui/patterns';
 
 // =============================================================================
 // GRID ACCESS
@@ -132,56 +130,4 @@ export function formatCountdown(
 
   // Fallback: just show seconds
   return [pad(seconds)];
-}
-
-/**
- * Calculate grid dimensions to fill viewport edge-to-edge.
- *
- * @param viewportWidth - Viewport width in pixels
- * @param viewportHeight - Viewport height in pixels
- * @returns Grid dimensions (cols, rows, squareSize, gap)
- */
-export function calculateGridDimensions(
-  viewportWidth: number,
-  viewportHeight: number
-): { cols: number; rows: number; squareSize: number; gap: number } {
-  // Start with max square size and work down until we have minimum required space
-  let squareSize = GRID_CONFIG.maxSquareSize;
-  let gap = Math.round(squareSize * GRID_CONFIG.gapRatio);
-  
-  // Calculate cols/rows to fill viewport completely
-  let cols = Math.floor(viewportWidth / (squareSize + gap));
-  let rows = Math.floor(viewportHeight / (squareSize + gap));
-
-  // Ensure minimum content fits (MM:SS in 2 lines worst case)
-  const minColsNeeded = calculateLineWidth('00:00') + GRID_CONFIG.edgePadding * 2;
-  const minRowsNeeded = DIGIT_HEIGHT * 2 + LINE_SPACING + GRID_CONFIG.edgePadding * 2;
-
-  while ((cols < minColsNeeded || rows < minRowsNeeded) && squareSize > GRID_CONFIG.minSquareSize) {
-    squareSize--;
-    gap = Math.round(squareSize * GRID_CONFIG.gapRatio);
-    cols = Math.floor(viewportWidth / (squareSize + gap));
-    rows = Math.floor(viewportHeight / (squareSize + gap));
-  }
-
-  // NOTE: Recalculate gap to exactly fill viewport (distribute remainder evenly)
-  // Formula: gap = (viewportWidth - cols * squareSize) / (cols - 1)
-  if (cols > 1) {
-    gap = Math.floor((viewportWidth - cols * squareSize) / (cols - 1));
-  }
-  // Same for height - but we use the smaller gap to keep squares uniform
-  if (rows > 1) {
-    const heightGap = Math.floor((viewportHeight - rows * squareSize) / (rows - 1));
-    gap = Math.min(gap, heightGap);
-  }
-
-  // Cap at MAX_NODES
-  const total = cols * rows;
-  if (total > MAX_NODES) {
-    const scale = Math.sqrt(MAX_NODES / total);
-    cols = Math.max(1, Math.floor(cols * scale));
-    rows = Math.max(1, Math.floor(rows * scale));
-  }
-
-  return { cols, rows, squareSize, gap };
 }

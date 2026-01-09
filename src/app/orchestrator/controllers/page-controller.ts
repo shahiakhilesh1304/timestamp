@@ -103,11 +103,18 @@ export function createPageController<TRenderer extends AnimationStateAwareRender
   function handleVisibilityChange(): void {
     const isHidden = document.visibilityState === 'hidden';
     const renderer = getCurrentRenderer();
+    
+    const prefersReducedMotion = reducedMotionManager.isActive();
+    const shouldAnimate = !isHidden && !prefersReducedMotion;
+    
+    // PERF: Update attribute to pause CSS animations when tab is hidden
+    // This stops GPU compositing work for background tabs
+    updateAttribute(!shouldAnimate);
+    
     if (!renderer) return;
 
-    const prefersReducedMotion = reducedMotionManager.isActive();
     const context: AnimationStateContext = {
-      shouldAnimate: !isHidden && !prefersReducedMotion,
+      shouldAnimate,
       prefersReducedMotion,
       reason: 'page-hidden',
     };

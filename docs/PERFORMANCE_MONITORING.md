@@ -87,14 +87,14 @@ unsubscribe();
 
 ## E2E Performance Tests
 
-Performance tests are in `e2e/performance.spec.ts`. Run them with:
+Performance tests are in `e2e/performance-profiling.spec.ts`. Run them with:
 
 ```bash
-# Fast mode (recommended for development)
-npm run test:e2e:fast -- --grep "Performance"
+# Performance tests only (long-running, tagged with @perf)
+npm run test:e2e:perf
 
-# Full mode (all browsers)
-npm run test:e2e -- --grep "Performance"
+# Or run all E2E tests including performance tests
+npm run test:e2e:full
 ```
 
 ### Test Scenarios
@@ -234,7 +234,7 @@ if (snapshot) {
 1. **Run E2E tests with performance collection**:
 
    ```bash
-   npm run test:e2e:fast -- --grep "Performance"
+   npm run test:e2e:perf
    ```
 
 2. **Check for budget violations** in test output
@@ -251,7 +251,7 @@ For comprehensive performance analysis, agents can use:
 
 ```text
 Analyze performance of [feature/component]:
-1. Run `npm run test:e2e:fast -- --grep "Performance"`
+1. Run `npm run test:e2e:perf`
 2. Check DOM node count and FPS metrics
 3. Identify any budget violations
 4. Suggest optimizations based on complex-theme-patterns.instructions.md

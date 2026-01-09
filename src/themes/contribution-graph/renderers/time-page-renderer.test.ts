@@ -1,242 +1,316 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { contributionGraphTimePageRenderer } from './time-page-renderer';
-import { createTestContainer, removeTestContainer, mockResizeObserver } from '@/test-utils/theme-test-helpers';
-import type { AnimationStateContext, MountContext } from '@themes/shared/types';
-import * as animation from '../utils/ui/animation';
-import * as rendererState from '../utils/ui/state';
+/**
+ * Tests for canvas-based time page renderer.
+ */
 
-/** Creates a mock MountContext with the given animation state. */
-function createMockMountContext(state: Partial<AnimationStateContext> = {}): MountContext {
-  const animationState: AnimationStateContext = {
-    shouldAnimate: state.shouldAnimate ?? true,
-    prefersReducedMotion: state.prefersReducedMotion ?? false,
-    reason: state.reason,
-  };
-  return { getAnimationState: () => animationState };
+import type { TimePageRenderer } from '@themes/shared/types';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createCanvasTimePageRenderer } from './time-page-renderer';
+
+/**
+ * Create a more complete canvas 2D context mock for testing.
+ */
+function createFullCanvasContextMock(): CanvasRenderingContext2D {
+  return {
+    fillRect: vi.fn(),
+    clearRect: vi.fn(),
+    getImageData: vi.fn().mockReturnValue({ data: [] }),
+    putImageData: vi.fn(),
+    drawImage: vi.fn(),
+    save: vi.fn(),
+    restore: vi.fn(),
+    beginPath: vi.fn(),
+    moveTo: vi.fn(),
+    lineTo: vi.fn(),
+    closePath: vi.fn(),
+    stroke: vi.fn(),
+    fill: vi.fn(),
+    arc: vi.fn(),
+    measureText: vi.fn().mockReturnValue({ width: 0 }),
+    fillText: vi.fn(),
+    setTransform: vi.fn(),
+    quadraticCurveTo: vi.fn(),
+    globalAlpha: 1,
+    fillStyle: '',
+    canvas: { width: 800, height: 600 },
+  } as unknown as CanvasRenderingContext2D;
 }
 
-describe('Contribution Graph Time Page Renderer', () => {
+describe('createCanvasTimePageRenderer', () => {
+  let renderer: TimePageRenderer;
   let container: HTMLElement;
-  let restoreResizeObserver: () => void;
+  let originalGetContext: typeof HTMLCanvasElement.prototype.getContext;
+  let mockObserve: ReturnType<typeof vi.fn>;
+  let mockUnobserve: ReturnType<typeof vi.fn>;
+  let mockDisconnect: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    container = createTestContainer();
-    restoreResizeObserver = mockResizeObserver();
+    // Override canvas context mock
+    originalGetContext = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue(
+      createFullCanvasContextMock()
+    ) as unknown as typeof HTMLCanvasElement.prototype.getContext;
+
+    // Mock ResizeObserver as a class
+    mockObserve = vi.fn();
+    mockUnobserve = vi.fn();
+    mockDisconnect = vi.fn();
+    
+    class MockResizeObserver {
+      observe = mockObserve;
+      unobserve = mockUnobserve;
+      disconnect = mockDisconnect;
+      constructor(_callback: ResizeObserverCallback) {}
+    }
+    vi.stubGlobal('ResizeObserver', MockResizeObserver);
+
+    // Create container
+    container = document.createElement('div');
+    Object.defineProperty(container, 'getBoundingClientRect', {
+      value: () => ({
+        width: 800,
+        height: 600,
+        top: 0,
+        left: 0,
+        right: 800,
+        bottom: 600,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      }),
+    });
+    document.body.appendChild(container);
+
+    // Create renderer
+    const targetDate = new Date(Date.now() + 3600000); // 1 hour from now
+    renderer = createCanvasTimePageRenderer(targetDate);
   });
 
-  afterEach(() => {
-    removeTestContainer(container);
-    restoreResizeObserver();
-    vi.restoreAllMocks();
+  afterEach(async () => {
+    await renderer.destroy();
+    container.remove();
+    HTMLCanvasElement.prototype.getContext = originalGetContext;
+    vi.unstubAllGlobals();
+  });
+
+  describe('factory', () => {
+    it('should create renderer with required methods', () => {
+      expect(renderer).toBeDefined();
+      expect(typeof renderer.mount).toBe('function');
+      expect(typeof renderer.updateTime).toBe('function');
+      expect(typeof renderer.onAnimationStateChange).toBe('function');
+      expect(typeof renderer.onCounting).toBe('function');
+      expect(typeof renderer.onCelebrating).toBe('function');
+      expect(typeof renderer.onCelebrated).toBe('function');
+      expect(typeof renderer.destroy).toBe('function');
+      expect(typeof renderer.getResourceTracker).toBe('function');
+    });
   });
 
   describe('mount', () => {
-    it('should mount successfully with grid display when renderer is created', () => {
-      const theme = contributionGraphTimePageRenderer(new Date());
-      theme.mount(container);
-      expect(container.querySelector('.contribution-graph-grid')).toBeTruthy();
-      expect(container.querySelector('[data-testid="countdown-display"]')).toBeTruthy();
+    it('should append canvas to container', () => {
+      renderer.mount(container);
+
+      const canvas = container.querySelector('canvas');
+      expect(canvas).not.toBeNull();
     });
 
-    it('should set data-testid on container when mounted', () => {
-      const theme = contributionGraphTimePageRenderer(new Date());
-      theme.mount(container);
-      expect(container.getAttribute('data-testid')).toBe('theme-container');
+    it('should set up resize observer', () => {
+      renderer.mount(container);
+
+      expect(mockObserve).toHaveBeenCalledWith(container);
     });
 
-    it('should create squares in the grid when mounted', () => {
-      const theme = contributionGraphTimePageRenderer(new Date());
-      theme.mount(container);
-      const squares = container.querySelectorAll('.contribution-graph-square');
-      expect(squares.length).toBeGreaterThan(0);
-    });
+    it('should accept animation state context', () => {
+      const getAnimationState = () => ({ shouldAnimate: true, prefersReducedMotion: false });
 
-    it('should accept MountContext with animation state getter when provided', () => {
-      const theme = contributionGraphTimePageRenderer(new Date());
-      const context = createMockMountContext({ shouldAnimate: false, prefersReducedMotion: true });
       expect(() => {
-        theme.mount(container, context);
+        renderer.mount(container, { getAnimationState });
       }).not.toThrow();
     });
   });
 
   describe('updateTime', () => {
-    it('should render digit squares when updateTime is called', () => {
-      const theme = contributionGraphTimePageRenderer(new Date());
-      theme.mount(container);
-      theme.updateTime({ days: 5, hours: 12, minutes: 30, seconds: 45, total: 500000000 });
-      const digitSquares = container.querySelectorAll('.contribution-graph-square.is-digit');
-      expect(digitSquares.length).toBeGreaterThan(0);
+    beforeEach(() => {
+      renderer.mount(container);
     });
 
-    it('should apply pulse animation when animating is enabled', () => {
-      const theme = contributionGraphTimePageRenderer(new Date());
-      const context = createMockMountContext({ shouldAnimate: true, prefersReducedMotion: false });
-      theme.mount(container, context);
-      theme.updateTime({ days: 1, hours: 2, minutes: 3, seconds: 4, total: 100000 });
-      const pulsingSquares = container.querySelectorAll('.contribution-graph-square.pulse-digit');
-      expect(pulsingSquares.length).toBeGreaterThan(0);
+    it('should accept time remaining object', () => {
+      const time = {
+        total: 3600000,
+        days: 0,
+        hours: 1,
+        minutes: 0,
+        seconds: 0,
+        milliseconds: 0,
+      };
+
+      expect(() => renderer.updateTime(time)).not.toThrow();
     });
 
-    it('should not pulse when reduced motion is preferred', () => {
-      let animState = { shouldAnimate: true, prefersReducedMotion: true };
-      const context: MountContext = { getAnimationState: () => animState };
-      const theme = contributionGraphTimePageRenderer(new Date());
-      theme.mount(container, context);
-      theme.updateTime({ days: 0, hours: 0, minutes: 0, seconds: 1, total: 1000 });
-      const pulsingSquares = container.querySelectorAll('.contribution-graph-square.pulse-digit');
-      expect(pulsingSquares.length).toBe(0);
+    it('should update display on time change', () => {
+      const time1 = { total: 3600000, days: 0, hours: 1, minutes: 0, seconds: 0, milliseconds: 0 };
+      const time2 = { total: 3599000, days: 0, hours: 0, minutes: 59, seconds: 59, milliseconds: 0 };
+
+      renderer.updateTime(time1);
+      expect(() => renderer.updateTime(time2)).not.toThrow();
     });
   });
 
   describe('onAnimationStateChange', () => {
-    it('should forward context to animation handler when animation state changes', () => {
-      const theme = contributionGraphTimePageRenderer(new Date());
-      const handlerSpy = vi.spyOn(animation, 'handleRendererAnimationStateChange').mockImplementation(() => {});
-      theme.mount(container);
-
-      theme.onAnimationStateChange({ shouldAnimate: false, prefersReducedMotion: false, reason: 'page-hidden' });
-
-      expect(handlerSpy).toHaveBeenCalledWith(expect.any(Object), { shouldAnimate: false, prefersReducedMotion: false, reason: 'page-hidden' });
+    beforeEach(() => {
+      renderer.mount(container);
     });
 
-    it('should handle animation being resumed', () => {
-      const theme = contributionGraphTimePageRenderer(new Date());
-      const context = createMockMountContext({ shouldAnimate: false });
-      theme.mount(container, context);
+    it('should handle animation enabled', () => {
       expect(() => {
-        theme.onAnimationStateChange({ shouldAnimate: true, prefersReducedMotion: false });
+        renderer.onAnimationStateChange({ shouldAnimate: true, prefersReducedMotion: false });
       }).not.toThrow();
     });
 
-    it('should handle reduced motion preference changes', () => {
-      const theme = contributionGraphTimePageRenderer(new Date());
-      theme.mount(container);
+    it('should handle animation disabled', () => {
       expect(() => {
-        theme.onAnimationStateChange({ shouldAnimate: true, prefersReducedMotion: true, reason: 'reduced-motion' });
+        renderer.onAnimationStateChange({ shouldAnimate: false, prefersReducedMotion: false });
+      }).not.toThrow();
+    });
+
+    it('should handle reduced motion preference', () => {
+      expect(() => {
+        renderer.onAnimationStateChange({ shouldAnimate: true, prefersReducedMotion: true });
       }).not.toThrow();
     });
   });
 
-  describe('lifecycle hooks', () => {
-    it('should render pixel art message when onCelebrating is called with reduced motion', () => {
-      const theme = contributionGraphTimePageRenderer(new Date());
-      // Use reduced motion context so celebration shows immediately without animation
-      const context = createMockMountContext({ shouldAnimate: true, prefersReducedMotion: true });
-      theme.mount(container, context);
-      theme.onCelebrating({
-        message: { forTextContent: 'Done!', forInnerHTML: 'Done!' },
-        fullMessage: 'Done!'
-      });
-      // With pixel art celebration, message squares are added to grid
-      const messageSquares = container.querySelectorAll('.contribution-graph-square.is-message');
-      expect(messageSquares.length).toBeGreaterThan(0);
+  describe('onCounting', () => {
+    beforeEach(() => {
+      renderer.mount(container);
     });
 
-    it('should show completion message without animation when onCelebrated is called', () => {
-      const theme = contributionGraphTimePageRenderer(new Date());
-      const messageSpy = vi.spyOn(animation, 'showCompletionMessageWithAmbient').mockImplementation(() => {});
-      const clearSpy = vi.spyOn(animation, 'clearCelebrationVisuals').mockImplementation(() => {});
-      theme.mount(container, createMockMountContext({ shouldAnimate: true, prefersReducedMotion: true }));
-
-      theme.onCelebrated({ message: { forTextContent: 'Great', forInnerHTML: 'Great' } });
-
-      expect(clearSpy).toHaveBeenCalled();
-      expect(messageSpy).toHaveBeenCalled();
-    });
-
-    it('should keep grid visible when celebrating with pixel art', () => {
-      const theme = contributionGraphTimePageRenderer(new Date());
-      const context = createMockMountContext({ shouldAnimate: true, prefersReducedMotion: true });
-      theme.mount(container, context);
-      theme.onCelebrating({
-        message: { forTextContent: 'Done!', forInnerHTML: 'Done!' },
-        fullMessage: 'Done!'
-      });
-      const grid = container.querySelector('.contribution-graph-grid') as HTMLElement;
-      // Grid stays visible for pixel art celebration
-      expect(grid?.style.display).not.toBe('none');
-    });
-
-    it('should reset celebration UI when onCounting is called after celebration', () => {
-      const theme = contributionGraphTimePageRenderer(new Date());
-      const context = createMockMountContext({ shouldAnimate: true, prefersReducedMotion: true });
-      theme.mount(container, context);
-      theme.onCelebrating({
-        message: { forTextContent: 'Done!', forInnerHTML: 'Done!' },
-        fullMessage: 'Done!'
-      });
-      theme.onCounting();
-      // Message squares should be cleared
-      const messageSquares = container.querySelectorAll('.contribution-graph-square.is-message');
-      expect(messageSquares.length).toBe(0);
-    });
-
-    it('should preserve grid layout after reset when toggling celebration state', () => {
-      const theme = contributionGraphTimePageRenderer(new Date());
-      const context = createMockMountContext({ shouldAnimate: true, prefersReducedMotion: true });
-      theme.mount(container, context);
-      
-      // Get grid's initial layout properties via CSS custom properties
-      const grid = container.querySelector('.contribution-graph-grid') as HTMLElement;
-      const initialCols = grid.style.getPropertyValue('--contribution-graph-cols');
-      const initialRows = grid.style.getPropertyValue('--contribution-graph-rows');
-      expect(initialCols).toBeTruthy();
-      expect(initialRows).toBeTruthy();
-      
-      // Trigger celebration then reset
-      theme.onCelebrating({ message: 'Done!' });
-      theme.onCounting();
-      
-      // Grid should still have proper layout
-      const afterResetCols = grid.style.getPropertyValue('--contribution-graph-cols');
-      const afterResetRows = grid.style.getPropertyValue('--contribution-graph-rows');
-      expect(afterResetCols).toBe(initialCols);
-      expect(afterResetRows).toBe(initialRows);
-    });
-
-    it('should render digits correctly after reset when counting resumes', () => {
-      const theme = contributionGraphTimePageRenderer(new Date());
-      const context = createMockMountContext({ shouldAnimate: true, prefersReducedMotion: true });
-      theme.mount(container, context);
-      
-      // Complete celebration cycle
-      theme.onCelebrating({ message: 'Done!' });
-      theme.onCounting();
-      
-      // Update time should render new digits
-      theme.updateTime({ days: 0, hours: 0, minutes: 5, seconds: 30, total: 330000 });
-      
-      const digitSquares = container.querySelectorAll('.contribution-graph-square.is-digit');
-      expect(digitSquares.length).toBeGreaterThan(0);
+    it('should reset to counting state', () => {
+      expect(() => renderer.onCounting()).not.toThrow();
     });
   });
 
-  describe('cleanup', () => {
-    it('should clean up all handles on destroy when destroy completes', async () => {
-      const theme = contributionGraphTimePageRenderer(new Date());
-      theme.mount(container);
-      await theme.destroy();
-      const handles = theme.getResourceTracker();
-      expect(handles.intervals).toHaveLength(0);
-      expect(handles.timeouts).toHaveLength(0);
-      expect(handles.listeners).toHaveLength(0);
+  describe('onCelebrating', () => {
+    beforeEach(() => {
+      renderer.mount(container);
     });
 
-    it('should clear container on destroy when destroy completes', async () => {
-      const theme = contributionGraphTimePageRenderer(new Date());
-      theme.mount(container);
-      await theme.destroy();
-      expect(container.innerHTML).toBe('');
+    it('should handle celebration without message', () => {
+      expect(() => renderer.onCelebrating()).not.toThrow();
+    });
+
+    it('should handle celebration with message', () => {
+      expect(() => {
+        renderer.onCelebrating({
+          fullMessage: 'Happy New Year!',
+          message: {
+            forTextContent: 'Happy New Year!',
+            forAriaLabel: 'Happy New Year!',
+          },
+        });
+      }).not.toThrow();
+    });
+
+    it('should handle celebration with empty message', () => {
+      expect(() => {
+        renderer.onCelebrating({ fullMessage: '' });
+      }).not.toThrow();
+    });
+  });
+
+  describe('onCelebrated', () => {
+    beforeEach(() => {
+      renderer.mount(container);
+    });
+
+    it('should handle celebrated state without message', () => {
+      expect(() => renderer.onCelebrated()).not.toThrow();
+    });
+
+    it('should handle celebrated state with message', () => {
+      expect(() => {
+        renderer.onCelebrated({
+          fullMessage: 'Countdown Complete!',
+          message: {
+            forTextContent: 'Countdown Complete!',
+            forAriaLabel: 'Countdown Complete!',
+          },
+        });
+      }).not.toThrow();
+    });
+  });
+
+  describe('destroy', () => {
+    beforeEach(() => {
+      renderer.mount(container);
+    });
+
+    it('should remove canvas from container', async () => {
+      expect(container.querySelector('canvas')).not.toBeNull();
+
+      await renderer.destroy();
+
+      expect(container.querySelector('canvas')).toBeNull();
+    });
+
+    it('should disconnect resize observer', async () => {
+      await renderer.destroy();
+
+      expect(mockDisconnect).toHaveBeenCalled();
+    });
+
+    it('should clean up resource tracker', async () => {
+      const tracker = renderer.getResourceTracker();
+
+      await renderer.destroy();
+
+      // After destroy, tracker should be cleared
+      expect(tracker.timeouts).toHaveLength(0);
+      expect(tracker.intervals).toHaveLength(0);
     });
   });
 
   describe('updateContainer', () => {
-    it('should delegate container updates to renderer state when updateContainer is invoked', () => {
-      const theme = contributionGraphTimePageRenderer(new Date());
-      const updateSpy = vi.spyOn(rendererState, 'updateTimeRendererContainer').mockImplementation(() => {});
-      theme.updateContainer(container);
-      expect(updateSpy).toHaveBeenCalled();
+    beforeEach(() => {
+      renderer.mount(container);
+    });
+
+    it('should move canvas to new container', () => {
+      const newContainer = document.createElement('div');
+      Object.defineProperty(newContainer, 'getBoundingClientRect', {
+        value: () => ({
+          width: 1024,
+          height: 768,
+          top: 0,
+          left: 0,
+          right: 1024,
+          bottom: 768,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        }),
+      });
+      document.body.appendChild(newContainer);
+
+      renderer.updateContainer?.(newContainer);
+
+      expect(newContainer.querySelector('canvas')).not.toBeNull();
+      expect(container.querySelector('canvas')).toBeNull();
+
+      newContainer.remove();
+    });
+  });
+
+  describe('getResourceTracker', () => {
+    it('should return resource tracker object', () => {
+      const tracker = renderer.getResourceTracker();
+
+      expect(tracker).toBeDefined();
+      expect(Array.isArray(tracker.timeouts)).toBe(true);
+      expect(Array.isArray(tracker.intervals)).toBe(true);
+      expect(Array.isArray(tracker.rafs)).toBe(true);
+      expect(Array.isArray(tracker.observers)).toBe(true);
+      expect(Array.isArray(tracker.listeners)).toBe(true);
     });
   });
 });

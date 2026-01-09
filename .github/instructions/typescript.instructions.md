@@ -502,13 +502,13 @@ npx tsc --noEmit && npm run lint
 npx tsc --noEmit && npm run lint && npm run test && npm run build
 
 # Full validation with E2E tests for UI changes
-npx tsc --noEmit && npm run lint && npm run test && npm run build && npm run test:e2e:fast
+npx tsc --noEmit && npm run lint && npm run test && npm run build && npm run test:e2e
 ```
 
 ### When to Run E2E Tests
-- **UI changes**: Run `npm run test:e2e:fast` for affected spec file
-- **Theme changes**: Run `npm run test:e2e:fast -- --grep "theme"`
-- **Countdown logic**: Run `npm run test:e2e:fast -- --grep "countdown"`
+- **UI changes**: Run `npm run test:e2e` for affected spec file
+- **Theme changes**: Run `npm run test:e2e -- --grep "theme"`
+- **Countdown logic**: Run `npm run test:e2e -- --grep "countdown"`
 
 ### Validation Workflow
 1. **After edit**: Run `npx tsc --noEmit` (catches type errors immediately)

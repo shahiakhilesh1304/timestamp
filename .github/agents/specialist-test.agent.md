@@ -23,7 +23,7 @@ You write **unit tests** (Vitest) and **E2E tests** (Playwright). You handle the
 - Write **E2E tests** for user flows, UI interactions, browser behavior
 - Use appropriate tool based on test type (see testing.instructions.md for decision rule)
 - Detect test overlaps, duplication, and scope violations
-- Run tests: `npm run test` (unit) or `npm run test:e2e:fast` (E2E)
+- Run tests: `npm run test` (unit) or `npm run test:e2e` (E2E)
 - Apply table-driven testing patterns with `it.each()` (see testing.instructions.md)
 
 ## What You DON'T Do:

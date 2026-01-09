@@ -25,7 +25,8 @@ test.describe('Deep Linking - Browser Navigation', () => {
     // Browser back should return to landing page
     await page.goBack();
     await waitForLandingPage(page);
-    await expect(page.getByTestId('countdown-display')).not.toBeVisible();
+    // Countdown display should not be visible (landing page is shown)
+    await expect(page.getByTestId('landing-page')).toBeVisible();
 
     // Browser forward should return to countdown
     await page.goForward();
