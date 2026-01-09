@@ -60,6 +60,67 @@ export function getPhaseDurationMs(phase: ActivityPhase): number {
  * This creates a consistent user experience whether counting down
  * 5 minutes or 5 days.
  *
+ * ## Tick Interval Optimization
+ *
+ * Tick intervals are aligned to ~50% of the weighted average CSS animation
+ * duration for each phase. This ensures:
+ * 1. New squares start ~halfway through existing animations (smooth visual flow)
+ * 2. Minimal JS overhead (~60% fewer ticks vs naive implementation)
+ * 3. CSS handles all animation timing - JS just kicks off batches
+ *
+ * ### Calculation Method
+ *
+ * **Step 1: CSS Base Durations** (from styles.scss)
+ * ```
+ * intensity-1: 3.2s (base)
+ * intensity-2: 2.6s
+ * intensity-3: 2.0s
+ * intensity-4: 1.6s
+ * ```
+ *
+ * **Step 2: Intensity Probability Distribution** (from INTENSITY_WEIGHTS)
+ * ```
+ * P(intensity-1) = 0.50 (10/20 weights)
+ * P(intensity-2) = 0.30 (6/20 weights)
+ * P(intensity-3) = 0.15 (3/20 weights)
+ * P(intensity-4) = 0.05 (1/20 weights)
+ * ```
+ *
+ * **Step 3: Phase Multipliers** (from PHASE_DURATION_MULTIPLIERS)
+ * ```
+ * calm:     1.8×
+ * building: 1.3×
+ * intense:  1.0×
+ * final:    0.7×
+ * ```
+ *
+ * **Step 4: Weighted Average Animation Duration**
+ * ```
+ * weighted_base = Σ(P(i) × base_duration(i))
+ *               = 0.50×3.2 + 0.30×2.6 + 0.15×2.0 + 0.05×1.6
+ *               = 1.6 + 0.78 + 0.3 + 0.08
+ *               = 2.76s
+ *
+ * phase_duration = weighted_base × phase_multiplier
+ * ```
+ *
+ * **Step 5: Optimal Tick Interval**
+ * ```
+ * optimal_tick ≈ phase_duration × 0.5
+ * ```
+ * (50% ensures new batch starts mid-animation for smooth overlap)
+ *
+ * ### Results Table
+ *
+ * | Phase    | Multiplier | Duration (2.76s × mult) | Tick (÷2, rounded) |
+ * |----------|------------|-------------------------|-------------------|
+ * | calm     | 1.8×       | 4.97s                   | 2500ms            |
+ * | building | 1.3×       | 3.59s                   | 1800ms            |
+ * | intense  | 1.0×       | 2.76s                   | 1400ms            |
+ * | final    | 0.7×       | 1.93s                   | 1000ms*           |
+ *
+ * *Final phase rounded to 1000ms to align with countdown tick interval.
+ *
  * @remarks
  * The scheduler will interpolate progress within each stage automatically.
  * Stages are processed in order; first matching threshold wins.
@@ -68,22 +129,26 @@ const ACTIVITY_STAGES: readonly StageDefinition<ActivityPhaseValues>[] = [
   {
     name: 'calm',
     at: '86400s',  // > 1 day remaining
-    values: { coveragePerMille: 2, turnoverRatio: 0.05, tickIntervalMs: 800 },
+    // Duration: 2.76s × 1.8 = 4.97s → tick at ~50% = 2500ms
+    values: { coveragePerMille: 2, turnoverRatio: 0.05, tickIntervalMs: 2500 },
   },
   {
     name: 'building',
     at: '3600s',   // > 1 hour remaining
-    values: { coveragePerMille: 2, turnoverRatio: 0.15, tickIntervalMs: 600 },
+    // Duration: 2.76s × 1.3 = 3.59s → tick at ~50% = 1800ms
+    values: { coveragePerMille: 2, turnoverRatio: 0.15, tickIntervalMs: 1800 },
   },
   {
     name: 'intense',
     at: '60s',     // > 1 minute remaining
-    values: { coveragePerMille: 4, turnoverRatio: 0.2, tickIntervalMs: 500 },
+    // Duration: 2.76s × 1.0 = 2.76s → tick at ~50% = 1400ms
+    values: { coveragePerMille: 4, turnoverRatio: 0.2, tickIntervalMs: 1400 },
   },
   {
     name: 'final',
     at: '0s',      // Final minute
-    values: { coveragePerMille: 8, turnoverRatio: 0.25, tickIntervalMs: 400 },
+    // Duration: 2.76s × 0.7 = 1.93s → tick at ~50% ≈ 1000ms (aligned to countdown tick)
+    values: { coveragePerMille: 6, turnoverRatio: 0.22, tickIntervalMs: 1000 },
   },
 ];
 

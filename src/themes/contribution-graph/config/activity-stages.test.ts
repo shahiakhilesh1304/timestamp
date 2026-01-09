@@ -1,12 +1,12 @@
-import { describe, expect, it, afterEach } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
-  AMBIENT_BASE_DURATION_MS,
-  clearActivityStageCache,
-  getActivityPhase,
-  getActivityStageSnapshot,
-  getPhaseConfig,
-  getPhaseConfigByName,
-  getPhaseDurationMs,
+    AMBIENT_BASE_DURATION_MS,
+    clearActivityStageCache,
+    getActivityPhase,
+    getActivityStageSnapshot,
+    getPhaseConfig,
+    getPhaseConfigByName,
+    getPhaseDurationMs,
 } from './activity-stages';
 
 const DAY_MS = 86_400_000;
@@ -45,10 +45,12 @@ describe('getPhaseDurationMs', () => {
 
 describe('getPhaseConfig', () => {
   it.each([
-    { msRemaining: DAY_MS + 1, expected: { coveragePerMille: 2, turnoverRatio: 0.05, tickIntervalMs: 800 } },
-    { msRemaining: HOUR_MS, expected: { coveragePerMille: 2, turnoverRatio: 0.15, tickIntervalMs: 600 } },
-    { msRemaining: 59_000, expected: { coveragePerMille: 4, turnoverRatio: 0.2, tickIntervalMs: 500 } },
-    { msRemaining: 0, expected: { coveragePerMille: 8, turnoverRatio: 0.25, tickIntervalMs: 400 } },
+    // PERF: Tick intervals aligned to ~50% of weighted avg CSS animation duration
+    { msRemaining: DAY_MS + 1, expected: { coveragePerMille: 2, turnoverRatio: 0.05, tickIntervalMs: 2500 } },
+    { msRemaining: HOUR_MS, expected: { coveragePerMille: 2, turnoverRatio: 0.15, tickIntervalMs: 1800 } },
+    { msRemaining: 59_000, expected: { coveragePerMille: 4, turnoverRatio: 0.2, tickIntervalMs: 1400 } },
+    // Final phase: 1000ms tick aligns with countdown tick for reduced overhead
+    { msRemaining: 0, expected: { coveragePerMille: 6, turnoverRatio: 0.22, tickIntervalMs: 1000 } },
   ])('should return config for msRemaining=$msRemaining', ({ msRemaining, expected }) => {
     expect(getPhaseConfig(msRemaining)).toEqual(expected);
   });
@@ -56,7 +58,8 @@ describe('getPhaseConfig', () => {
 
 describe('getPhaseConfigByName', () => {
   it('should return matching phase values when phase is known', () => {
-    expect(getPhaseConfigByName('building')).toMatchObject({ tickIntervalMs: 600 });
+    // Building phase: tick aligned to ~50% of 3.68s avg animation = 1800ms
+    expect(getPhaseConfigByName('building')).toMatchObject({ tickIntervalMs: 1800 });
   });
 
   it('should throw when phase is unknown', () => {

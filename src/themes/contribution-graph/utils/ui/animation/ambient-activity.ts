@@ -18,11 +18,11 @@ import type { ResourceTracker } from '@themes/shared/types';
 
 import type { ActivityPhase } from '../../../config';
 import {
-  buildSquareClass,
-  CSS_CLASSES,
-  getAmbientClass,
-  getPhaseConfigByName,
-  getWeightedIntensity,
+    buildSquareClass,
+    CSS_CLASSES,
+    getAmbientClass,
+    getPhaseConfigByName,
+    getWeightedIntensity,
 } from '../../../config';
 import { getPhaseDurationMs } from '../../../config/activity-stages';
 import type { BoundingBox, GridState, Square } from '../../../types';
@@ -66,6 +66,11 @@ function handleAnimationEnd(square: Square, state: GridState): void {
 /**
  * Schedule cleanup without retaining long-lived listeners.
  * Tracks timeout in ResourceTracker and WeakMap for proper disposal.
+ *
+ * @remarks Cleanup delay accounts for:
+ * - Base animation duration (phase-adjusted)
+ * - Maximum stagger delay (32% of duration for stagger-4)
+ * - Small buffer for CSS timing variance
  */
 function scheduleSquareCleanup(
   square: Square,
@@ -74,6 +79,9 @@ function scheduleSquareCleanup(
   resourceTracker: ResourceTracker
 ): void {
   const duration = getPhaseDurationMs(phase);
+  // Max stagger delay is 32% of duration (stagger-4), plus 120ms buffer
+  const maxStaggerDelay = duration * 0.32;
+  const cleanupDelay = duration + maxStaggerDelay + 120;
 
   // Use timeout to avoid animationend closures retaining old grid references
   const timeoutId = window.setTimeout(() => {
@@ -82,7 +90,7 @@ function scheduleSquareCleanup(
       // Remove from pending cleanups after execution
       state.pendingCleanups.delete(square);
     }
-  }, duration + 120); // small buffer to ensure completion
+  }, cleanupDelay);
 
   // Track in resourceTracker for global cleanup
   resourceTracker.timeouts.push(timeoutId);
@@ -92,19 +100,43 @@ function scheduleSquareCleanup(
 
 /**
  * Perform one tick of ambient activity (CSS-driven lifecycle).
+ * 
+ * Uses "add per tick" model with a concurrent cap: each tick adds new squares
+ * up to a maximum concurrent limit. Since animation duration (with stagger) is
+ * longer than tick interval, batches naturally overlap creating organic continuous
+ * activity. The cap prevents unbounded accumulation that would stress the GPU.
+ * 
+ * **Overlap calculation:**
+ * - Animation duration: 2-5s (phase-dependent)
+ * - Stagger spread: 32% of duration (0-32% delays across batch)
+ * - Effective batch lifetime: duration × 1.32
+ * - Tick interval: 1-2.5s (phase-dependent)
+ * - Expected overlap: (duration × 1.32) ÷ tick_interval ≈ 1.5-2.6 batches
+ * - Cap at 3× provides headroom for variance and smooth transitions
+ * 
  * @remarks JS adds is-ambient class; CSS animation runs to completion naturally
  */
 export function activityTick(state: GridState, phase: ActivityPhase, resourceTracker: ResourceTracker): void {
   if (state.ambientSquares.length === 0) return;
 
   const config = getPhaseConfigByName(phase);
-  const targetActive = Math.max(
+  
+  // Calculate squares to ADD this tick (not maintain as active)
+  const squaresPerTick = Math.max(
     1,
     Math.ceil((state.ambientSquares.length * config.coveragePerMille) / 1000)
   );
+  
+  // Cap maximum concurrent animations to prevent GPU overload
+  // Factor of 3× accounts for:
+  // - Typical 1.5-2.6 batches overlapping (duration×1.32 ÷ tick_interval)
+  // - Stagger spread extending batch lifetime by 32%
+  // - Variance in cleanup timing and phase transitions
+  const maxConcurrent = squaresPerTick * 3;
+  const currentActive = state.activeAmbient.size;
 
   // NOTE: We no longer remove squares - CSS animation runs to completion.
-  // The activeAmbient set is cleaned up by animationend listeners.
+  // The activeAmbient set is cleaned up by timeout after animation ends.
   
   // Skip wall/message squares that may have been promoted during animation
   for (const square of state.activeAmbient) {
@@ -117,8 +149,9 @@ export function activityTick(state: GridState, phase: ActivityPhase, resourceTra
     }
   }
 
-  // Add new active squares - skip wall, message, exclusion zone, and currently animating
-  const needed = Math.max(0, targetActive - state.activeAmbient.size);
+  // Add new squares up to cap (allows overlap but prevents accumulation)
+  const headroom = Math.max(0, maxConcurrent - currentActive);
+  const needed = Math.min(squaresPerTick, headroom);
   if (needed === 0) return;
   
   // NOTE: Create local buffer (GC will clean up between ticks)

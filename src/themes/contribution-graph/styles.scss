@@ -204,8 +204,57 @@
 
 // Base ambient class triggers the animation
 // Phase determines timing multiplier, intensity determines color and base duration
+// Stagger classes add animation-delay to spread out batch starts for organic feel
+//
+// IMPORTANT: animation-fill-mode: both prevents flicker during stagger delay.
+// - "both" applies BOTH first keyframe (0%) during delay AND last keyframe (100%) after
+// - Without "both", square shows intensity color during delay, then jumps to base (flicker)
+// - With "both", square stays at base color (0% keyframe) during delay, then animates smoothly
 .contribution-graph-square.is-ambient {
-  animation: contribution-graph-ambient calc(var(--ambient-base-duration, 2.5s) * var(--phase-multiplier, 1)) ease-in-out forwards;
+  animation: contribution-graph-ambient calc(var(--ambient-base-duration, 2.5s) * var(--phase-multiplier, 1)) ease-in-out both;
+  animation-delay: var(--stagger-delay, 0ms);
+}
+
+// =============================================================================
+// STAGGER DELAYS - Organic Batch Animation
+// =============================================================================
+// Squares added in the same tick are randomly assigned a stagger class (0-4).
+// This spreads animation start times across ~32% of the animation duration,
+// creating overlapping fade-ins/fade-outs for a more organic, living feel.
+//
+// ARCHITECTURE:
+// - Delay values are percentages of the phase-adjusted animation duration
+// - This ensures delays scale naturally with phase changes (calm → final)
+// - Combined with animation-fill-mode: both to prevent flicker during delay
+//
+// CALCULATION:
+// delay = base_duration × phase_multiplier × stagger_percent
+//
+// Example (building phase: 2.76s base × 1.3 multiplier = 3.59s):
+// - stagger-0: 0s           (immediate)
+// - stagger-1: 3.59s × 8%  = 0.29s
+// - stagger-2: 3.59s × 16% = 0.57s
+// - stagger-3: 3.59s × 24% = 0.86s
+// - stagger-4: 3.59s × 32% = 1.15s
+
+.contribution-graph-square.is-ambient.stagger-0 {
+  --stagger-delay: 0ms;
+}
+
+.contribution-graph-square.is-ambient.stagger-1 {
+  --stagger-delay: calc(var(--ambient-base-duration, 2.5s) * var(--phase-multiplier, 1) * 0.08);
+}
+
+.contribution-graph-square.is-ambient.stagger-2 {
+  --stagger-delay: calc(var(--ambient-base-duration, 2.5s) * var(--phase-multiplier, 1) * 0.16);
+}
+
+.contribution-graph-square.is-ambient.stagger-3 {
+  --stagger-delay: calc(var(--ambient-base-duration, 2.5s) * var(--phase-multiplier, 1) * 0.24);
+}
+
+.contribution-graph-square.is-ambient.stagger-4 {
+  --stagger-delay: calc(var(--ambient-base-duration, 2.5s) * var(--phase-multiplier, 1) * 0.32);
 }
 
 // Phase-based timing multipliers:
@@ -273,6 +322,17 @@
     // Show intensity color briefly, JS will remove class on next tick
     background-color: var(--ambient-target, var(--contribution-graph-square-2));
   }
+}
+
+// =============================================================================
+// PERF: Pause animations when page is hidden
+// When JS sets data-reduced-motion="true" (via visibilitychange or user preference),
+// pause all CSS animations to stop GPU compositing work in background tabs.
+// =============================================================================
+[data-reduced-motion="true"] .contribution-graph-square.is-ambient,
+[data-reduced-motion="true"] .contribution-graph-square.pulse-digit,
+[data-reduced-motion="true"] .contribution-graph-square.is-message {
+  animation-play-state: paused;
 }
 
 // =============================================================================
