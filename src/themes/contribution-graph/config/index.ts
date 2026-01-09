@@ -153,14 +153,14 @@ const BASE_CLASS_STRINGS: readonly string[] = [
  * - stagger-3: 24% of animation duration
  * - stagger-4: 32% of animation duration
  * 
- * For example, in "building" phase (3.68s avg duration):
+  * For example, in "building" phase (3.59s avg duration):
  * - stagger-0: 0ms
- * - stagger-1: ~294ms
- * - stagger-2: ~589ms
- * - stagger-3: ~883ms
- * - stagger-4: ~1178ms
+ * - stagger-1: ~287ms
+ * - stagger-2: ~574ms
+ * - stagger-3: ~862ms
+ * - stagger-4: ~1149ms
  * 
- * This spreads the batch across ~1.2s while the animation runs for ~3.7s,
+ * This spreads the batch across ~1.2s while the animation runs for ~3.6s,
  * creating natural overlap.
  */
 export const STAGGER_BUCKET_COUNT = 5;
@@ -236,8 +236,6 @@ export function getWeightedIntensity(): number {
 // =============================================================================
 
 export {
-  type ActivityPhase,
-  type ActivityPhaseValues,
   BATCH_OVERLAP_FRACTION,
   clearActivityStageCache,
   getActivityPhase,
@@ -246,5 +244,8 @@ export {
   getOverlapTickIntervalMs,
   getPhaseConfig,
   getPhaseConfigByName,
-  MAX_STAGGER_FRACTION} from './activity-stages';
+  MAX_STAGGER_FRACTION,
+  type ActivityPhase,
+  type ActivityPhaseValues
+} from './activity-stages';
 

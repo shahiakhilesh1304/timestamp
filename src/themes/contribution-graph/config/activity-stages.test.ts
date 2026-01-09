@@ -1,16 +1,16 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import {
-    AMBIENT_BASE_DURATION_MS,
-    BATCH_OVERLAP_FRACTION,
-    clearActivityStageCache,
-    getActivityPhase,
-    getActivityStageSnapshot,
-    getBatchLifetimeMs,
-    getOverlapTickIntervalMs,
-    getPhaseConfig,
-    getPhaseConfigByName,
-    getPhaseDurationMs,
-    MAX_STAGGER_FRACTION,
+  AMBIENT_BASE_DURATION_MS,
+  BATCH_OVERLAP_FRACTION,
+  clearActivityStageCache,
+  getActivityPhase,
+  getActivityStageSnapshot,
+  getBatchLifetimeMs,
+  getOverlapTickIntervalMs,
+  getPhaseConfig,
+  getPhaseConfigByName,
+  getPhaseDurationMs,
+  MAX_STAGGER_FRACTION,
 } from './activity-stages';
 
 const DAY_MS = 86_400_000;
@@ -63,7 +63,7 @@ describe('getPhaseConfig', () => {
 
 describe('getPhaseConfigByName', () => {
   it('should return matching phase values when phase is known', () => {
-    // Building phase: tick aligned to ~50% of 3.68s avg animation = 1800ms
+    // Building phase: tick aligned to ~50% of 3.59s avg animation = 1800ms
     expect(getPhaseConfigByName('building')).toMatchObject({ tickIntervalMs: 1800 });
   });
 

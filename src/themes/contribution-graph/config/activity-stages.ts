@@ -106,15 +106,15 @@ export function getOverlapTickIntervalMs(phase: ActivityPhase): number {
  *
  * ## Tick Interval Optimization
  *
- * Tick intervals are aligned to ~50% of the weighted average CSS animation
+ * Tick intervals are aligned to ~50% of the weighted average animation
  * duration for each phase. This ensures:
  * 1. New squares start ~halfway through existing animations (smooth visual flow)
  * 2. Minimal JS overhead (~60% fewer ticks vs naive implementation)
- * 3. CSS handles all animation timing - JS just kicks off batches
+ * 3. Canvas renderer handles animation timing with easing curves
  *
  * ### Calculation Method
  *
- * **Step 1: CSS Base Durations** (from styles.scss)
+ * **Step 1: Base Animation Durations** (from ambient.ts)
  * ```
  * intensity-1: 3.2s (base)
  * intensity-2: 2.6s
