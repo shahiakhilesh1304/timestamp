@@ -1,12 +1,16 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import {
     AMBIENT_BASE_DURATION_MS,
+    BATCH_OVERLAP_FRACTION,
     clearActivityStageCache,
     getActivityPhase,
     getActivityStageSnapshot,
+    getBatchLifetimeMs,
+    getOverlapTickIntervalMs,
     getPhaseConfig,
     getPhaseConfigByName,
     getPhaseDurationMs,
+    MAX_STAGGER_FRACTION,
 } from './activity-stages';
 
 const DAY_MS = 86_400_000;
@@ -46,11 +50,12 @@ describe('getPhaseDurationMs', () => {
 describe('getPhaseConfig', () => {
   it.each([
     // PERF: Tick intervals aligned to ~50% of weighted avg CSS animation duration
-    { msRemaining: DAY_MS + 1, expected: { coveragePerMille: 2, turnoverRatio: 0.05, tickIntervalMs: 2500 } },
-    { msRemaining: HOUR_MS, expected: { coveragePerMille: 2, turnoverRatio: 0.15, tickIntervalMs: 1800 } },
-    { msRemaining: 59_000, expected: { coveragePerMille: 4, turnoverRatio: 0.2, tickIntervalMs: 1400 } },
+    // Coverage reduced + additive overlap (20%) for GPU optimal performance
+    { msRemaining: DAY_MS + 1, expected: { coveragePerMille: 4.0, turnoverRatio: 0.05, tickIntervalMs: 2500 } },
+    { msRemaining: HOUR_MS, expected: { coveragePerMille: 5.0, turnoverRatio: 0.15, tickIntervalMs: 1800 } },
+    { msRemaining: 59_000, expected: { coveragePerMille: 6.5, turnoverRatio: 0.2, tickIntervalMs: 1400 } },
     // Final phase: 1000ms tick aligns with countdown tick for reduced overhead
-    { msRemaining: 0, expected: { coveragePerMille: 6, turnoverRatio: 0.22, tickIntervalMs: 1000 } },
+    { msRemaining: 0, expected: { coveragePerMille: 8.0, turnoverRatio: 0.22, tickIntervalMs: 1000 } },
   ])('should return config for msRemaining=$msRemaining', ({ msRemaining, expected }) => {
     expect(getPhaseConfig(msRemaining)).toEqual(expected);
   });
@@ -84,5 +89,44 @@ describe('getActivityStageSnapshot', () => {
     clearActivityStageCache();
     const third = getActivityStageSnapshot(120_000);
     expect(third).not.toBe(second);
+  });
+});
+
+describe('getBatchLifetimeMs', () => {
+  it('should include stagger spread in batch lifetime', () => {
+    // Animation duration × (1 + 0.32 stagger)
+    const animDuration = getPhaseDurationMs('intense');
+    const batchLifetime = getBatchLifetimeMs('intense');
+    
+    expect(batchLifetime).toBe(animDuration * (1 + MAX_STAGGER_FRACTION));
+  });
+
+  it('should scale with phase multiplier', () => {
+    // calm (1.8×) should be longer than final (0.7×)
+    const calmLifetime = getBatchLifetimeMs('calm');
+    const finalLifetime = getBatchLifetimeMs('final');
+    
+    expect(calmLifetime).toBeGreaterThan(finalLifetime);
+    expect(calmLifetime / finalLifetime).toBeCloseTo(1.8 / 0.7, 1);
+  });
+});
+
+describe('getOverlapTickIntervalMs', () => {
+  it('should be 80% of batch lifetime for smooth overlap', () => {
+    const batchLifetime = getBatchLifetimeMs('building');
+    const tickInterval = getOverlapTickIntervalMs('building');
+    
+    expect(tickInterval).toBe(Math.round(batchLifetime * BATCH_OVERLAP_FRACTION));
+  });
+
+  it('should create ~20% overlap between batches', () => {
+    const batchLifetime = getBatchLifetimeMs('final');
+    const tickInterval = getOverlapTickIntervalMs('final');
+    
+    // Overlap = batch_lifetime - tick_interval
+    const overlap = batchLifetime - tickInterval;
+    const overlapFraction = overlap / batchLifetime;
+    
+    expect(overlapFraction).toBeCloseTo(1 - BATCH_OVERLAP_FRACTION, 2);
   });
 });

@@ -5,7 +5,7 @@
  * Uses percentile-based assertions to reduce flakiness.
  */
 
-import { test, expect, type Page } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { waitForCountdown, waitForMobileMenuButton } from './fixtures/test-utils';
 import { getThemeIdsForTest } from './fixtures/theme-fixtures';
 
@@ -135,7 +135,7 @@ function getPercentile(values: number[], percentile: number): number {
   return sorted[Math.min(index, sorted.length - 1)];
 }
 
-test.describe('Performance: Initial Load', () => {
+test.describe('Performance: Initial Load @perf', () => {
   test('landing page loads within budget', async ({ page }) => {
     const start = Date.now();
     await page.goto('/');
@@ -159,7 +159,7 @@ test.describe('Performance: Initial Load', () => {
 for (const themeId of THEMES_UNDER_TEST) {
   const targetTheme = THEMES_UNDER_TEST.find((t) => t !== themeId) ?? themeId;
 
-  test.describe(`Performance: Initial Load (${themeId})`, () => {
+  test.describe(`Performance: Initial Load (${themeId}) @perf`, () => {
     test(`countdown page loads within budget (${themeId})`, async ({ page }) => {
       const start = Date.now();
       await navigateToCountdown(page, themeId);
@@ -180,7 +180,7 @@ for (const themeId of THEMES_UNDER_TEST) {
 for (const themeId of THEMES_UNDER_TEST) {
   const targetTheme = THEMES_UNDER_TEST.find((t) => t !== themeId) ?? themeId;
 
-  test.describe(`Performance: Theme Switching (${themeId})`, () => {
+  test.describe(`Performance: Theme Switching (${themeId}) @perf`, () => {
     test(`theme switch completes within budget from ${themeId} to ${targetTheme}`, async ({ page }) => {
       await navigateToCountdown(page, themeId);
 
@@ -207,7 +207,7 @@ for (const themeId of THEMES_UNDER_TEST) {
 
 
 for (const themeId of THEMES_UNDER_TEST) {
-  test.describe(`Performance: Frame Rate (${themeId})`, () => {
+  test.describe(`Performance: Frame Rate (${themeId}) @perf`, () => {
     test(`maintains acceptable FPS during countdown (${themeId})`, async ({ page }) => {
       await navigateToCountdown(page, themeId);
       await waitForStableCountdown(page);
@@ -259,7 +259,7 @@ for (const themeId of THEMES_UNDER_TEST) {
 }
 
 for (const themeId of THEMES_UNDER_TEST) {
-  test.describe(`Performance: Responsive (${themeId})`, () => {
+  test.describe(`Performance: Responsive (${themeId}) @perf`, () => {
     test(`resize does not cause excessive layout thrashing (${themeId})`, async ({ page }) => {
       await page.setViewportSize(DESKTOP_VIEWPORT);
       await navigateToCountdown(page, themeId);
@@ -307,7 +307,7 @@ for (const themeId of THEMES_UNDER_TEST) {
 }
 
 for (const themeId of THEMES_UNDER_TEST) {
-  test.describe(`Performance: High Resolution (${themeId})`, () => {
+  test.describe(`Performance: High Resolution (${themeId}) @perf`, () => {
     test(`handles 4K viewport without excessive DOM (${themeId})`, async ({ page }) => {
       await page.setViewportSize({ width: 2560, height: 1440 });
       await navigateToCountdown(page, themeId);
@@ -342,7 +342,7 @@ for (const themeId of THEMES_UNDER_TEST) {
 for (const themeId of THEMES_UNDER_TEST) {
   const targetTheme = THEMES_UNDER_TEST.find((t) => t !== themeId) ?? themeId;
 
-  test.describe(`Performance: Stress Testing (${themeId})`, () => {
+  test.describe(`Performance: Stress Testing (${themeId}) @perf`, () => {
     test(`handles rapid theme switches gracefully (${themeId})`, async ({ page }) => {
       await navigateToCountdown(page, themeId);
 

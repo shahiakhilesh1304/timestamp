@@ -236,11 +236,15 @@ export function getWeightedIntensity(): number {
 // =============================================================================
 
 export {
-    clearActivityStageCache,
-    getActivityPhase,
-    getActivityStageSnapshot,
-    getPhaseConfig,
-    getPhaseConfigByName, type ActivityPhase,
-    type ActivityPhaseValues
-} from './activity-stages';
+  type ActivityPhase,
+  type ActivityPhaseValues,
+  BATCH_OVERLAP_FRACTION,
+  clearActivityStageCache,
+  getActivityPhase,
+  getActivityStageSnapshot,
+  getBatchLifetimeMs,
+  getOverlapTickIntervalMs,
+  getPhaseConfig,
+  getPhaseConfigByName,
+  MAX_STAGGER_FRACTION} from './activity-stages';
 

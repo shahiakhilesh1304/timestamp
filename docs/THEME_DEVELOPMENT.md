@@ -349,7 +349,7 @@ The scaffold creates test files alongside your source files. Add tests as you cu
 ### Run E2E Tests
 
 ```bash
-npm run test:e2e:fast -- --grep "my-awesome-theme"
+npm run test:e2e -- --grep "my-awesome-theme"
 ```
 
 ### Full Validation (Before Committing)

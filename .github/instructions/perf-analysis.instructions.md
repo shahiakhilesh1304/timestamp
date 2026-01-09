@@ -23,8 +23,8 @@ The app includes a performance overlay accessible via `?perf=1` URL parameter:
 Run performance tests to check for regressions:
 
 ```bash
-# Fast mode - use this for agent workflows
-npm run test:e2e:fast -- --grep "Performance"
+# Performance tests only (long-running)
+npm run test:e2e:perf
 ```
 
 ### Window API
@@ -106,8 +106,8 @@ When reporting performance issues, include:
 ### Performance Check Command
 
 ```bash
-# Fast mode for agent workflows
-npm run test:e2e:fast -- --grep "Performance"
+# Performance tests only (long-running)
+npm run test:e2e:perf
 ```
 
 ### Using the Window API
@@ -140,7 +140,7 @@ element.style.transition = 'background-color 150ms, box-shadow 150ms';
 | Ignoring performance budgets | Regressions slip through unnoticed | Check budgets after hot path changes |
 | `will-change` on many elements | Creates compositor layer per element | Apply to containers only |
 | Animating `background-color` | Triggers paint on every frame | Use `opacity` or `transform` |
-| Running full E2E suite for perf | Too slow for iteration | Use `test:e2e:fast -- --grep Performance` |
+| Running full E2E suite for perf | Too slow for iteration | Use `test:e2e:perf` for performance tests only |
 | Missing cleanup verification | Memory leaks accumulate | Always verify `getResourceTracker()` |
 
 ---

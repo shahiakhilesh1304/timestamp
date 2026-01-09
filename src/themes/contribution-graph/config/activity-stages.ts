@@ -6,9 +6,9 @@
  */
 
 import {
-    createStageScheduler,
-    type StageDefinition,
-    type StageScheduler,
+  createStageScheduler,
+  type StageDefinition,
+  type StageScheduler,
 } from '@core/scheduling/stage-scheduler';
 
 // =============================================================================
@@ -46,6 +46,50 @@ export const PHASE_DURATION_MULTIPLIERS: Record<ActivityPhase, number> = {
 /** Compute animation duration for phase (base duration × phase multiplier). */
 export function getPhaseDurationMs(phase: ActivityPhase): number {
   return AMBIENT_BASE_DURATION_MS * (PHASE_DURATION_MULTIPLIERS[phase] ?? 1);
+}
+
+/**
+ * Maximum stagger delay as fraction of animation duration.
+ * Matches CSS stagger-4 delay (32% of duration).
+ */
+export const MAX_STAGGER_FRACTION = 0.32;
+
+/**
+ * Overlap fraction - next batch starts when current is this far through.
+ * 0.8 = 20% overlap between batches (smooth transition, minimal concurrent load).
+ */
+export const BATCH_OVERLAP_FRACTION = 0.8;
+
+/**
+ * Compute total batch lifetime including stagger spread.
+ * 
+ * Batch lifetime = animation_duration × (1 + stagger_fraction)
+ * Because the last square in a batch (stagger-4) starts 32% later
+ * than the first square (stagger-0).
+ * 
+ * @param phase - Activity phase name
+ * @returns Total milliseconds from first square start to last square end
+ */
+export function getBatchLifetimeMs(phase: ActivityPhase): number {
+  const animationDuration = getPhaseDurationMs(phase);
+  return animationDuration * (1 + MAX_STAGGER_FRACTION);
+}
+
+/**
+ * Compute tick interval for out-of-phase scheduling.
+ * 
+ * Next tick fires when current batch is ~80% complete, creating
+ * 20% overlap between batches. This eliminates visual gaps while
+ * keeping concurrent animations minimal (~1.2× instead of 3×).
+ * 
+ * tick_interval = batch_lifetime × overlap_fraction
+ * 
+ * @param phase - Activity phase name
+ * @returns Milliseconds until next tick should fire
+ */
+export function getOverlapTickIntervalMs(phase: ActivityPhase): number {
+  const batchLifetime = getBatchLifetimeMs(phase);
+  return Math.round(batchLifetime * BATCH_OVERLAP_FRACTION);
 }
 
 // =============================================================================
@@ -130,25 +174,29 @@ const ACTIVITY_STAGES: readonly StageDefinition<ActivityPhaseValues>[] = [
     name: 'calm',
     at: '86400s',  // > 1 day remaining
     // Duration: 2.76s × 1.8 = 4.97s → tick at ~50% = 2500ms
-    values: { coveragePerMille: 2, turnoverRatio: 0.05, tickIntervalMs: 2500 },
+    // Coverage: 4.0‰ with 20% additive overlap = ~24 concurrent
+    values: { coveragePerMille: 4.0, turnoverRatio: 0.05, tickIntervalMs: 2500 },
   },
   {
     name: 'building',
     at: '3600s',   // > 1 hour remaining
     // Duration: 2.76s × 1.3 = 3.59s → tick at ~50% = 1800ms
-    values: { coveragePerMille: 2, turnoverRatio: 0.15, tickIntervalMs: 1800 },
+    // Coverage: 5.0‰ with 20% additive overlap = ~30 concurrent
+    values: { coveragePerMille: 5.0, turnoverRatio: 0.15, tickIntervalMs: 1800 },
   },
   {
     name: 'intense',
     at: '60s',     // > 1 minute remaining
     // Duration: 2.76s × 1.0 = 2.76s → tick at ~50% = 1400ms
-    values: { coveragePerMille: 4, turnoverRatio: 0.2, tickIntervalMs: 1400 },
+    // Coverage: 6.5‰ with 20% additive overlap = ~39 concurrent
+    values: { coveragePerMille: 6.5, turnoverRatio: 0.2, tickIntervalMs: 1400 },
   },
   {
     name: 'final',
     at: '0s',      // Final minute
     // Duration: 2.76s × 0.7 = 1.93s → tick at ~50% ≈ 1000ms (aligned to countdown tick)
-    values: { coveragePerMille: 6, turnoverRatio: 0.22, tickIntervalMs: 1000 },
+    // Coverage: 8.0‰ with 20% additive overlap = ~48 concurrent
+    values: { coveragePerMille: 8.0, turnoverRatio: 0.22, tickIntervalMs: 1000 },
   },
 ];
 

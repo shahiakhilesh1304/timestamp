@@ -67,7 +67,7 @@
 .landing-theme-background {
   position: fixed;
   inset: 0;
-  width: 100%;
+  width: 100vw;
   height: 100vh;
   /* iOS Safari fix: Use -webkit-fill-available for accurate viewport sizing */
   height: -webkit-fill-available;

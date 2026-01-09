@@ -1,86 +1,54 @@
 /**
  * Contribution Graph theme styles
  * GitHub-style grid with pixel-art digits
+ *
+ * ARCHITECTURE: This theme uses canvas-based rendering for performance.
+ * - All square rendering (colors, animations, hover) is handled by canvas
+ * - CSS only handles: container backgrounds, canvas positioning, GPU hints
+ * - Colors are defined in utils/colors.ts as hex values for canvas fillStyle
  */
 
 // =============================================================================
-// COLOR MODE PALETTES
+// COLOR MODE PALETTES (CSS Variables for Container Backgrounds)
 // =============================================================================
+// These CSS variables are used for:
+// 1. Theme container background (instant theme switching)
+// 2. Landing page background container
+// Canvas renderer uses equivalent hex values from colors.ts
 
 :root {
-  // Dark mode palette (matches legacy contribution-graph)
+  // Dark mode palette
   --contribution-graph-background-for-dark: #0d1117;
-  --contribution-graph-square-0-for-dark: #161b22;
-  --contribution-graph-square-1-for-dark: #0e4429;
-  --contribution-graph-square-2-for-dark: #006d32;
-  --contribution-graph-square-3-for-dark: #26a641;
-  --contribution-graph-square-4-for-dark: #39d353;
-  --contribution-graph-digit-for-dark: #39d353;
-
-  // Light mode palette (matches legacy contribution-graph)
+  // Light mode palette
   --contribution-graph-background-for-light: #ffffff;
-  --contribution-graph-square-0-for-light: #f9fafb;
-  --contribution-graph-square-1-for-light: #9be9a8;
-  --contribution-graph-square-2-for-light: #40c463;
-  --contribution-graph-square-3-for-light: #30a14e;
-  --contribution-graph-square-4-for-light: #216e39;
-  --contribution-graph-digit-for-light: #166534;
 }
 
 // =============================================================================
-// COLOR MODE SWITCHING
+// COLOR MODE SWITCHING (Background Only)
 // =============================================================================
 
 @media (prefers-color-scheme: dark) {
   :root {
     --contribution-graph-background: var(--contribution-graph-background-for-dark);
-    --contribution-graph-square-0: var(--contribution-graph-square-0-for-dark);
-    --contribution-graph-square-1: var(--contribution-graph-square-1-for-dark);
-    --contribution-graph-square-2: var(--contribution-graph-square-2-for-dark);
-    --contribution-graph-square-3: var(--contribution-graph-square-3-for-dark);
-    --contribution-graph-square-4: var(--contribution-graph-square-4-for-dark);
-    --contribution-graph-digit: var(--contribution-graph-digit-for-dark);
-    --contribution-graph-pulse-animation: contribution-graph-pulse-dark;
   }
 }
 
 @media (prefers-color-scheme: light) {
   :root {
     --contribution-graph-background: var(--contribution-graph-background-for-light);
-    --contribution-graph-square-0: var(--contribution-graph-square-0-for-light);
-    --contribution-graph-square-1: var(--contribution-graph-square-1-for-light);
-    --contribution-graph-square-2: var(--contribution-graph-square-2-for-light);
-    --contribution-graph-square-3: var(--contribution-graph-square-3-for-light);
-    --contribution-graph-square-4: var(--contribution-graph-square-4-for-light);
-    --contribution-graph-digit: var(--contribution-graph-digit-for-light);
-    --contribution-graph-pulse-animation: contribution-graph-pulse-light;
   }
 }
 
 [data-color-mode='dark'] {
   --contribution-graph-background: var(--contribution-graph-background-for-dark);
-  --contribution-graph-square-0: var(--contribution-graph-square-0-for-dark);
-  --contribution-graph-square-1: var(--contribution-graph-square-1-for-dark);
-  --contribution-graph-square-2: var(--contribution-graph-square-2-for-dark);
-  --contribution-graph-square-3: var(--contribution-graph-square-3-for-dark);
-  --contribution-graph-square-4: var(--contribution-graph-square-4-for-dark);
-  --contribution-graph-digit: var(--contribution-graph-digit-for-dark);
-  --contribution-graph-pulse-animation: contribution-graph-pulse-dark;
 }
 
 [data-color-mode='light'] {
   --contribution-graph-background: var(--contribution-graph-background-for-light);
-  --contribution-graph-square-0: var(--contribution-graph-square-0-for-light);
-  --contribution-graph-square-1: var(--contribution-graph-square-1-for-light);
-  --contribution-graph-square-2: var(--contribution-graph-square-2-for-light);
-  --contribution-graph-square-3: var(--contribution-graph-square-3-for-light);
-  --contribution-graph-square-4: var(--contribution-graph-square-4-for-light);
-  --contribution-graph-digit: var(--contribution-graph-digit-for-light);
-  --contribution-graph-pulse-animation: contribution-graph-pulse-light;
 }
 
 // =============================================================================
-// THEME STYLES
+// THEME CONTAINER
 // =============================================================================
 
 // Theme container - background applied to orchestrator-provided container
@@ -89,298 +57,39 @@
   background: var(--contribution-graph-background);
 }
 
-// Landing page background - same grid as time page for visual consistency
-// NOTE: Theme switching (CSS variable changes) is instant by default - no transition block needed
-// IMPORTANT: Use position: fixed (not absolute) so background is positioned relative to viewport,
-// not the scrollable landing-page container. This prevents nested scrolling issues.
-// The grid is sized to document.scrollHeight via JS, ensuring it fills the entire scrollable area.
+// =============================================================================
+// CANVAS RENDERER
+// =============================================================================
+// Single canvas element replaces 5000+ DOM nodes
+// PERF: One GPU layer instead of thousands of compositor layers
+
+.contribution-graph-canvas {
+  display: block;
+  // PERF: hint browser to keep this layer on GPU
+  will-change: contents;
+  // PERF: contain within bounds - layout changes don't affect parent
+  contain: strict;
+}
+
+// =============================================================================
+// LANDING PAGE BACKGROUND
+// =============================================================================
+// Landing page uses same canvas renderer for visual consistency
+// IMPORTANT: Use position: fixed so background is positioned relative to viewport,
+// not the scrollable landing-page container. Prevents nested scrolling issues.
+
 .landing-theme-background--contribution-graph {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
+  width: 100vw;
   height: 100vh;
   overflow: visible;
   background: var(--contribution-graph-background);
-  
-  // Grid positioned at top-left, sized to fill scrollable area via JS
-  .contribution-graph-grid {
+
+  .contribution-graph-canvas {
     position: absolute;
     top: 0;
     left: 0;
   }
 }
-
-.contribution-graph-grid {
-  // Grid is centered via flexbox parent
-  // Use class-based visibility instead of inline style to preserve layout properties
-  // PERF: Container-level containment allows browser to skip sibling recalc
-  contain: layout style paint;
-
-  // Dynamic grid layout via CSS custom properties (set by JS)
-  display: grid;
-  grid-template-columns: repeat(var(--contribution-graph-cols), var(--contribution-graph-square-size));
-  grid-template-rows: repeat(var(--contribution-graph-rows), var(--contribution-graph-square-size));
-  gap: var(--contribution-graph-gap);
-  width: var(--contribution-graph-grid-width);
-  height: var(--contribution-graph-grid-height);
-}
-
-// =============================================================================
-// SQUARE STYLES
-// =============================================================================
-
-.contribution-graph-square {
-  // PERF: Full containment per square - tells browser layout/paint changes
-  // inside don't affect siblings. Essential for 5000+ element grids.
-  contain: strict;
-  // Size and border-radius via CSS custom properties (set by JS on grid)
-  width: var(--contribution-graph-square-size);
-  height: var(--contribution-graph-square-size);
-  border-radius: var(--contribution-graph-border-radius);
-  // No base transition - instant color changes like legacy theme
-  // Transitions only applied via specific classes (ambient-fade)
-}
-
-.contribution-graph-square.intensity-0 {
-  background-color: var(--contribution-graph-square-0);
-}
-
-.contribution-graph-square.intensity-1 {
-  background-color: var(--contribution-graph-square-1);
-}
-
-.contribution-graph-square.intensity-2 {
-  background-color: var(--contribution-graph-square-2);
-}
-
-.contribution-graph-square.intensity-3 {
-  background-color: var(--contribution-graph-square-3);
-}
-
-.contribution-graph-square.intensity-4 {
-  background-color: var(--contribution-graph-square-4);
-}
-
-// Digit squares - highest intensity with drop shadow (matches legacy)
-.contribution-graph-square.is-digit {
-  background-color: var(--contribution-graph-digit);
-  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 20%));
-}
-
-// =============================================================================
-// HOVER EFFECT - "Surprise and delight" for lit squares
-// PERF: transform is compositor-only (GPU-accelerated), no paint triggered
-// =============================================================================
-
-// Only apply hover effect to "lit" squares (non-empty)
-.contribution-graph-square.intensity-1:hover,
-.contribution-graph-square.intensity-2:hover,
-.contribution-graph-square.intensity-3:hover,
-.contribution-graph-square.intensity-4:hover,
-.contribution-graph-square.is-digit:hover,
-.contribution-graph-square.is-wall:hover,
-.contribution-graph-square.is-message:hover,
-.contribution-graph-square.is-ambient:hover {
-  transform: scale(1.15);
-  z-index: 10;
-}
-
-// Disable hover effect when reduced motion is preferred
-@media (prefers-reduced-motion: reduce) {
-  .contribution-graph-square:hover {
-    transform: none;
-  }
-}
-
-// =============================================================================
-// AMBIENT ACTIVITY - CSS-Driven Animation Lifecycle
-// =============================================================================
-
-// Ambient squares use CSS animations for the full lifecycle:
-// fade-in → hold → fade-out, all handled by CSS with no JS timing overhead.
-// Different intensity levels have different durations for visual variety.
-// JS only adds/removes the `is-ambient` class; CSS handles all timing.
-
-// Base ambient class triggers the animation
-// Phase determines timing multiplier, intensity determines color and base duration
-// Stagger classes add animation-delay to spread out batch starts for organic feel
-//
-// IMPORTANT: animation-fill-mode: both prevents flicker during stagger delay.
-// - "both" applies BOTH first keyframe (0%) during delay AND last keyframe (100%) after
-// - Without "both", square shows intensity color during delay, then jumps to base (flicker)
-// - With "both", square stays at base color (0% keyframe) during delay, then animates smoothly
-.contribution-graph-square.is-ambient {
-  animation: contribution-graph-ambient calc(var(--ambient-base-duration, 2.5s) * var(--phase-multiplier, 1)) ease-in-out both;
-  animation-delay: var(--stagger-delay, 0ms);
-}
-
-// =============================================================================
-// STAGGER DELAYS - Organic Batch Animation
-// =============================================================================
-// Squares added in the same tick are randomly assigned a stagger class (0-4).
-// This spreads animation start times across ~32% of the animation duration,
-// creating overlapping fade-ins/fade-outs for a more organic, living feel.
-//
-// ARCHITECTURE:
-// - Delay values are percentages of the phase-adjusted animation duration
-// - This ensures delays scale naturally with phase changes (calm → final)
-// - Combined with animation-fill-mode: both to prevent flicker during delay
-//
-// CALCULATION:
-// delay = base_duration × phase_multiplier × stagger_percent
-//
-// Example (building phase: 2.76s base × 1.3 multiplier = 3.59s):
-// - stagger-0: 0s           (immediate)
-// - stagger-1: 3.59s × 8%  = 0.29s
-// - stagger-2: 3.59s × 16% = 0.57s
-// - stagger-3: 3.59s × 24% = 0.86s
-// - stagger-4: 3.59s × 32% = 1.15s
-
-.contribution-graph-square.is-ambient.stagger-0 {
-  --stagger-delay: 0ms;
-}
-
-.contribution-graph-square.is-ambient.stagger-1 {
-  --stagger-delay: calc(var(--ambient-base-duration, 2.5s) * var(--phase-multiplier, 1) * 0.08);
-}
-
-.contribution-graph-square.is-ambient.stagger-2 {
-  --stagger-delay: calc(var(--ambient-base-duration, 2.5s) * var(--phase-multiplier, 1) * 0.16);
-}
-
-.contribution-graph-square.is-ambient.stagger-3 {
-  --stagger-delay: calc(var(--ambient-base-duration, 2.5s) * var(--phase-multiplier, 1) * 0.24);
-}
-
-.contribution-graph-square.is-ambient.stagger-4 {
-  --stagger-delay: calc(var(--ambient-base-duration, 2.5s) * var(--phase-multiplier, 1) * 0.32);
-}
-
-// Phase-based timing multipliers:
-// Calm = slow, breathing effect; Final = rapid, exciting effect
-.contribution-graph-square.is-ambient.phase-calm {
-  --phase-multiplier: 1.8;
-}
-
-.contribution-graph-square.is-ambient.phase-building {
-  --phase-multiplier: 1.3;
-}
-
-.contribution-graph-square.is-ambient.phase-intense {
-  --phase-multiplier: 1.0;
-}
-
-.contribution-graph-square.is-ambient.phase-final {
-  --phase-multiplier: 0.7;
-}
-
-// Intensity determines target color and base animation duration
-// Lower intensities = longer, subtler pulses; higher = shorter, brighter
-.contribution-graph-square.is-ambient.intensity-1 {
-  --ambient-target: var(--contribution-graph-square-1);
-  --ambient-base-duration: 3.2s;
-}
-
-.contribution-graph-square.is-ambient.intensity-2 {
-  --ambient-target: var(--contribution-graph-square-2);
-  --ambient-base-duration: 2.6s;
-}
-
-.contribution-graph-square.is-ambient.intensity-3 {
-  --ambient-target: var(--contribution-graph-square-3);
-  --ambient-base-duration: 2.0s;
-}
-
-.contribution-graph-square.is-ambient.intensity-4 {
-  --ambient-target: var(--contribution-graph-square-4);
-  --ambient-base-duration: 1.6s;
-}
-
-// Animation keyframes: fade-in → hold → fade-out
-// Uses CSS variables for colors, returns to base at 100%
-// animation-fill-mode: forwards keeps it at base color after completion
-@keyframes contribution-graph-ambient {
-  0% {
-    background-color: var(--contribution-graph-square-0);
-  }
-  12% {
-    background-color: var(--ambient-target, var(--contribution-graph-square-2));
-  }
-  75% {
-    background-color: var(--ambient-target, var(--contribution-graph-square-2));
-  }
-  100% {
-    background-color: var(--contribution-graph-square-0);
-  }
-}
-
-// Reduced motion: no animation, just brief color change
-@media (prefers-reduced-motion: reduce) {
-  .contribution-graph-square.is-ambient {
-    animation: none;
-    // Show intensity color briefly, JS will remove class on next tick
-    background-color: var(--ambient-target, var(--contribution-graph-square-2));
-  }
-}
-
-// =============================================================================
-// PERF: Pause animations when page is hidden
-// When JS sets data-reduced-motion="true" (via visibilitychange or user preference),
-// pause all CSS animations to stop GPU compositing work in background tabs.
-// =============================================================================
-[data-reduced-motion="true"] .contribution-graph-square.is-ambient,
-[data-reduced-motion="true"] .contribution-graph-square.pulse-digit,
-[data-reduced-motion="true"] .contribution-graph-square.is-message {
-  animation-play-state: paused;
-}
-
-// =============================================================================
-// PULSE ANIMATION (matches legacy contribution-graph)
-// =============================================================================
-
-// Dark mode pulse - fade lighter (reduce opacity to 70%)
-@keyframes contribution-graph-pulse-dark {
-  0%, 100% { opacity: 100%; }
-  50% { opacity: 70%; }
-}
-
-// Light mode pulse - subtle fade for dark green digits (82% opacity)
-@keyframes contribution-graph-pulse-light {
-  0%, 100% { opacity: 100%; }
-  50% { opacity: 82%; }
-}
-
-.contribution-graph-square.pulse-digit {
-  animation: var(--contribution-graph-pulse-animation, contribution-graph-pulse-dark) 1.2s ease-in-out infinite;
-}
-
-// Reduced motion: disable pulse animation
-@media (prefers-reduced-motion: reduce) {
-  .contribution-graph-square.pulse-digit {
-    animation: none;
-  }
-}
-
-// =============================================================================
-// WALL BUILD ANIMATION
-// =============================================================================
-
-// Wall squares - solid color, takes precedence over ALL other states
-// This allows digits and ambient to keep showing but wall visually "covers" them
-// Animated via RAF batching in JS for consistent cross-device performance
-.contribution-graph-square.is-wall {
-  background-color: var(--contribution-graph-digit) !important;
-  // Override pulse animation
-  animation: none !important;
-}
-
-// Message squares (pixel art text) - stay visible during and after unbuild
-// Also takes precedence over ambient
-.contribution-graph-square.is-message {
-  background-color: var(--contribution-graph-digit) !important;
-  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 20%));
-  animation: var(--contribution-graph-pulse-animation, contribution-graph-pulse-dark) 1.2s ease-in-out infinite;
-}
-
-

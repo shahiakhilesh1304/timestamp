@@ -16,7 +16,8 @@ Guidelines for GitHub Actions workflows in this Vite/TypeScript project.
 | `npm ci` | Install dependencies (CI) |
 | `npm run build` | Build with TypeScript + Vite |
 | `npm run test` | Unit tests (Vitest) |
-| `npm run test:e2e` | E2E tests (Playwright) |
+| `npm run test:e2e` | E2E tests - fast mode (chromium, excludes @perf) |
+| `npm run test:e2e:full` | E2E tests - complete suite (all browsers, includes @perf) |
 | `npm run lint` | ESLint checking |
 | `npm run validate:scripts` | Type-check and lint build scripts |
 

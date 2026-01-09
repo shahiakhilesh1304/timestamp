@@ -184,7 +184,8 @@ Our workflows use these npm scripts:
 | `npm ci` | Clean install (faster, reproducible) |
 | `npm run build` | Build with TypeScript + Vite |
 | `npm run test` | Unit tests (Vitest) |
-| `npm run test:e2e` | E2E tests with Playwright |
+| `npm run test:e2e` | E2E tests - fast mode (chromium, excludes @perf) |
+| `npm run test:e2e:full` | E2E tests - complete suite (all browsers, @perf) |
 | `npm run lint` | ESLint checking |
 
 ## 📊 Checking Workflow Status

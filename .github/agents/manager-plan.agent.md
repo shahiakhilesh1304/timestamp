@@ -80,7 +80,7 @@ See [testing.instructions.md](../instructions/testing.instructions.md) for compr
 - **Test naming**: "should [expected behavior] when [condition]" pattern
 - **Table-driven tests**: Use `it.each` for parameterized scenarios
 - **AAA pattern**: Arrange, Act, Assert structure
-- **E2E fast mode**: Agents must use `npm run test:e2e:fast`, never full suite
+- **E2E fast mode**: Agents must use `npm run test:e2e` (excludes @perf tests)
 - **File organization**: Unit tests co-located; E2E uses hybrid pattern
 </configuration>
 
