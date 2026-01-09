@@ -3,11 +3,13 @@
  * @packageDocumentation
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { cleanupDOM } from '@/test-utils/dom-helpers';
-import { createUIComponents, destroyUIComponents, createOptionalComponents, destroyOptionalComponents } from './ui-factory';
-import type { UIFactoryOptions } from './ui-factory';
 import type { WallClockTime } from '@core/types';
+
+import type { UIFactoryOptions } from './ui-factory';
+import { createOptionalComponents, createUIComponents, destroyOptionalComponents, destroyUIComponents } from './ui-factory';
 
 // Mock all component modules
 vi.mock('@/components/theme-switcher', () => ({
@@ -62,6 +64,15 @@ vi.mock('@/components/countdown-buttons/timer-controls', () => ({
   createTimerControls: vi.fn(() => ({
     getElement: () => document.createElement('div'),
     setPlaying: vi.fn(),
+    destroy: vi.fn(),
+  })),
+  createFullscreenTimerControls: vi.fn(() => ({
+    getElement: () => document.createElement('div'),
+    setPlaying: vi.fn(),
+    isPlaying: vi.fn(() => true),
+    show: vi.fn(),
+    hide: vi.fn(),
+    isVisible: vi.fn(() => false),
     destroy: vi.fn(),
   })),
 }));

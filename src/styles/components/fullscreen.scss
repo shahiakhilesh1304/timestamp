@@ -30,6 +30,11 @@ body.fullscreen-mode .world-map-container {
 }
 
 /* Exit button positioning and transitions */
+:root {
+  --exit-button-width: 180px;
+  --exit-button-spacing: 12px;
+}
+
 #exit-fullscreen-button {
   position: fixed;
   top: 20px;
@@ -55,6 +60,68 @@ body.fullscreen-mode .world-map-container {
 
 #exit-fullscreen-button[data-visible="true"] {
   visibility: visible;
+}
+
+/* ==========================================================================
+   Fullscreen Timer Controls
+   Play/pause and reset buttons that appear alongside exit button in fullscreen
+   ========================================================================== */
+
+.fullscreen-timer-controls {
+  position: fixed;
+  top: 20px;
+  /* Position left of exit button with gap */
+  right: calc(20px + var(--exit-button-width) + var(--exit-button-spacing));
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0%;
+  pointer-events: none;
+  transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+  transform: translateY(-10px);
+  visibility: hidden;
+}
+
+.fullscreen-timer-controls.show-fullscreen-controls {
+  opacity: 100% !important;
+  pointer-events: auto !important;
+  transform: translateY(0);
+  visibility: visible;
+}
+
+.fullscreen-timer-controls[data-visible="false"] {
+  visibility: hidden;
+}
+
+.fullscreen-timer-controls[data-visible="true"] {
+  visibility: visible;
+}
+
+/* Fullscreen timer buttons - match exit button styling (AC1.4) */
+.fullscreen-timer-button {
+  min-width: 44px;
+  min-height: 44px;
+  width: 44px;
+  height: 44px;
+  padding: 10px !important; /* Override .countdown-button's 10px 16px padding */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fullscreen-timer-button:focus-visible {
+  outline: 2px solid var(--color-focus-ring, #58a6ff);
+  outline-offset: 2px;
+}
+
+/* Reduced motion support for fullscreen controls (AC1.6) */
+@media (prefers-reduced-motion: reduce) {
+  #exit-fullscreen-button,
+  .fullscreen-timer-controls {
+    transition: none;
+    transform: none;
+  }
 }
 
 /* Ensure countdown takes full viewport in fullscreen */

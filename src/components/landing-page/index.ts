@@ -8,6 +8,7 @@
  * - interaction-controller: Event binding, keyboard navigation, cleanup
  * - dom-builders: DOM element construction
  * - event-handlers: Event handler factories
+ * - help-content: Help & FAQ page content
  */
 
 import '../../styles/layouts/landing-page.scss';
@@ -19,6 +20,7 @@ import { getResolvedColorMode } from '@core/preferences/color-mode';
 import { getUserTimezone } from '@core/time/timezone';
 import { convertWallClockToAbsolute, createNextOccurrence } from '@core/time/wall-clock-conversion';
 import type { CountdownConfig, CountdownMode, ThemeId } from '@core/types';
+import { buildTabList, buildTabPanel, type TabController, type TabPanelController } from '@core/utils/tabs';
 import { DEFAULT_THEME_ID, getThemeColorOverrides, getThemeDisplayName } from '@themes/registry';
 
 import { COLOR_MODE_CHANGE_EVENT, type ColorModeChangeDetail, createColorModeToggle } from '../color-mode-toggle';
@@ -45,6 +47,10 @@ import {
     type LandingPageFormState,
     toLocalInputValue,
 } from './form-controller';
+import { buildHelpContent } from './help-content';
+
+/** Tab identifiers for landing page navigation. */
+type LandingTab = 'create' | 'help';
 
 /**
  * Options for creating a landing page instance.
@@ -114,8 +120,13 @@ export function createLandingPage(options: LandingPageOptions): LandingPageContr
   let backgroundManager: BackgroundManagerController | null = null;
   let formController: FormController | null = null;
 
+  // Tab navigation controllers
+  let tabController: TabController<LandingTab> | null = null;
+  let createPanel: TabPanelController | null = null;
+  let helpPanel: TabPanelController | null = null;
+
   /**
-   * Build the header section with color mode toggle.
+   * Build the header section with color mode toggle and tab navigation.
    */
   function buildHeaderWithToggle(): HTMLElement {
     const header = document.createElement('header');
@@ -134,11 +145,37 @@ export function createLandingPage(options: LandingPageOptions): LandingPageContr
     // Create color mode toggle
     colorModeToggleEl = createColorModeToggle();
 
+    // Create tab navigation
+    tabController = buildTabList<LandingTab>({
+      tabs: [
+        { id: 'create', label: 'Create Countdown', selected: true },
+        { id: 'help', label: 'Help & FAQ', selected: false },
+      ],
+      onTabChange: handleTabChange,
+      ariaLabel: 'Landing page sections',
+      className: 'landing-tabs',
+      idPrefix: 'landing',
+    });
+
     // Assemble header
     header.appendChild(colorModeToggleEl);
     header.appendChild(headerContent);
+    header.appendChild(tabController.getTabList());
 
     return header;
+  }
+
+  /** Handle tab switching between Create and Help panels. */
+  function handleTabChange(tabId: LandingTab): void {
+    if (tabId === 'create') {
+      createPanel?.show();
+      helpPanel?.hide();
+      announce('Create Countdown tab selected');
+    } else {
+      createPanel?.hide();
+      helpPanel?.show();
+      announce('Help and FAQ tab selected');
+    }
   }
 
   /** Get display name for a timezone */
@@ -303,7 +340,7 @@ export function createLandingPage(options: LandingPageOptions): LandingPageContr
   }
 
   /** Build all form sections and assemble form content */
-  function buildFormSections(): { formContent: HTMLElement; footer: HTMLElement; header: HTMLElement } {
+  function buildFormSections(): { formContent: HTMLElement; helpContent: HTMLElement; footer: HTMLElement; header: HTMLElement } {
     const header = buildHeaderWithToggle();
     const modeSelector = buildAndSetupModeSelector();
     dateSection = buildAndSetupDateSection();
@@ -330,6 +367,7 @@ export function createLandingPage(options: LandingPageOptions): LandingPageContr
 
     const footer = buildFooter();
 
+    // Create form content (inside create tab panel)
     const formContent = document.createElement('div');
     formContent.className = 'landing-form-content';
     formContent.append(
@@ -343,7 +381,10 @@ export function createLandingPage(options: LandingPageOptions): LandingPageContr
       startButton
     );
 
-    return { formContent, footer, header };
+    // Create help content
+    const helpContent = buildHelpContent();
+
+    return { formContent, helpContent, footer, header };
   }
 
   /** Initialize background manager and render initial theme */
@@ -460,10 +501,27 @@ export function createLandingPage(options: LandingPageOptions): LandingPageContr
     rootEl = root;
     const themeBackground = createThemeBackground(initialState.theme);
     const { wrapper, card, main } = createWrapperAndCard();
-    const { formContent, footer, header } = buildFormSections();
+    const { formContent, helpContent, footer, header } = buildFormSections();
+
+    // Create tab panels
+    createPanel = buildTabPanel<LandingTab>({
+      id: 'create',
+      visible: true,
+      content: formContent,
+      className: 'landing-tabs',
+      idPrefix: 'landing',
+    });
+
+    helpPanel = buildTabPanel<LandingTab>({
+      id: 'help',
+      visible: false,
+      content: helpContent,
+      className: 'landing-tabs',
+      idPrefix: 'landing',
+    });
 
     // Assemble DOM hierarchy
-    main.append(formContent);
+    main.append(createPanel.getPanel(), helpPanel.getPanel());
     card.append(header, main);
     wrapper.append(card, footer);
     root.append(themeBackground, wrapper);
@@ -559,6 +617,14 @@ export function createLandingPage(options: LandingPageOptions): LandingPageContr
       formController.destroy();
       formController = null;
     }
+
+    // Clean up tab controller
+    if (tabController) {
+      tabController.destroy();
+      tabController = null;
+    }
+    createPanel = null;
+    helpPanel = null;
 
     // Clear controller references (already destroyed by form controller)
     timezoneSelectorController = null;

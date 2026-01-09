@@ -2,13 +2,15 @@
  * Fullscreen manager utilities
  * Covers API availability, request fallbacks, UI behavior, and cleanup.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import {
-  initFullscreenManager,
-  isFullscreenApiAvailable,
-  requestFullscreen,
-} from './fullscreen-manager';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EXIT_BUTTON_HIDE_DELAY_MS } from './constants';
+import {
+    getFullscreenTimerPlaying,
+    initFullscreenManager,
+    isFullscreenApiAvailable,
+    requestFullscreen,
+    setFullscreenTimerPlaying,
+} from './fullscreen-manager';
 
 vi.mock('@core/utils/dom', () => ({
   createIcon: vi.fn(() => {
@@ -141,6 +143,254 @@ describe('fullscreen-manager', () => {
       vi.advanceTimersByTime(EXIT_BUTTON_HIDE_DELAY_MS + 10);
       expect(exitButton.dataset.visible).toBe('false');
       expect(exitButton.getAttribute('aria-hidden')).toBe('true');
+
+      cleanup();
+    });
+  });
+
+  describe('timer controls integration', () => {
+    it('should not create timer controls when mode is not timer', () => {
+      const container = document.createElement('div');
+      document.body.appendChild(container);
+      const cleanup = initFullscreenManager({ container, mode: 'wall-clock' });
+
+      const timerControls = document.querySelector('[data-testid="fullscreen-timer-controls"]');
+      expect(timerControls).toBeNull();
+
+      cleanup();
+    });
+
+    it('should create timer controls when mode is timer (AC1.3)', () => {
+      const container = document.createElement('div');
+      document.body.appendChild(container);
+      const cleanup = initFullscreenManager({ container, mode: 'timer' });
+
+      const timerControls = document.querySelector('[data-testid="fullscreen-timer-controls"]');
+      expect(timerControls).not.toBeNull();
+      expect(timerControls?.getAttribute('role')).toBe('toolbar');
+
+      cleanup();
+    });
+
+    it('should position timer controls left of exit button (AC1.1)', () => {
+      const container = document.createElement('div');
+      document.body.appendChild(container);
+      const cleanup = initFullscreenManager({ container, mode: 'timer' });
+
+      const exitButton = document.getElementById('exit-fullscreen-button');
+      const timerControls = document.querySelector('[data-testid="fullscreen-timer-controls"]');
+
+      // Timer controls should be before exit button in DOM (thus to its left visually)
+      const children = Array.from(document.body.children);
+      const timerIndex = children.indexOf(timerControls as Element);
+      const exitIndex = children.indexOf(exitButton as Element);
+
+      expect(timerIndex).toBeLessThan(exitIndex);
+
+      cleanup();
+    });
+
+    it('should show timer controls on mouse movement in fullscreen', () => {
+      const container = document.createElement('div');
+      document.body.appendChild(container);
+      const cleanup = initFullscreenManager({ container, mode: 'timer' });
+      const timerControls = document.querySelector('[data-testid="fullscreen-timer-controls"]') as HTMLElement;
+
+      // Enter fullscreen
+      (document as Document & { webkitFullscreenElement?: Element }).webkitFullscreenElement = container;
+      document.dispatchEvent(new Event('fullscreenchange'));
+
+      // Initially hidden
+      expect(timerControls.getAttribute('data-visible')).toBe('false');
+
+      // Show on mouse move
+      document.dispatchEvent(new Event('mousemove'));
+      expect(timerControls.getAttribute('data-visible')).toBe('true');
+
+      cleanup();
+    });
+
+    it('should auto-hide timer controls after delay (AC1.2)', () => {
+      const container = document.createElement('div');
+      document.body.appendChild(container);
+      const cleanup = initFullscreenManager({ container, mode: 'timer' });
+      const timerControls = document.querySelector('[data-testid="fullscreen-timer-controls"]') as HTMLElement;
+
+      // Enter fullscreen and trigger show
+      (document as Document & { webkitFullscreenElement?: Element }).webkitFullscreenElement = container;
+      document.dispatchEvent(new Event('fullscreenchange'));
+      document.dispatchEvent(new Event('mousemove'));
+
+      expect(timerControls.getAttribute('data-visible')).toBe('true');
+
+      // Advance time past hide delay
+      vi.advanceTimersByTime(EXIT_BUTTON_HIDE_DELAY_MS + 10);
+
+      expect(timerControls.getAttribute('data-visible')).toBe('false');
+
+      cleanup();
+    });
+
+    it('should invoke onTimerPlayPauseToggle callback on button click', () => {
+      const onPlayPauseToggle = vi.fn();
+      const container = document.createElement('div');
+      document.body.appendChild(container);
+      const cleanup = initFullscreenManager({
+        container,
+        mode: 'timer',
+        onTimerPlayPauseToggle: onPlayPauseToggle,
+        initialTimerPlaying: true,
+      });
+
+      const playPauseButton = document.querySelector('[data-testid="fullscreen-timer-play-pause"]') as HTMLButtonElement;
+      playPauseButton.click();
+
+      expect(onPlayPauseToggle).toHaveBeenCalledWith(false);
+
+      cleanup();
+    });
+
+    it('should invoke onTimerReset callback on reset button click', () => {
+      const onReset = vi.fn();
+      const container = document.createElement('div');
+      document.body.appendChild(container);
+      const cleanup = initFullscreenManager({
+        container,
+        mode: 'timer',
+        onTimerReset: onReset,
+      });
+
+      const resetButton = document.querySelector('[data-testid="fullscreen-timer-reset"]') as HTMLButtonElement;
+      resetButton.click();
+
+      expect(onReset).toHaveBeenCalledTimes(1);
+
+      cleanup();
+    });
+
+    it('should clean up timer controls on destroy', () => {
+      const container = document.createElement('div');
+      document.body.appendChild(container);
+      const cleanup = initFullscreenManager({ container, mode: 'timer' });
+
+      expect(document.querySelector('[data-testid="fullscreen-timer-controls"]')).not.toBeNull();
+
+      cleanup();
+
+      expect(document.querySelector('[data-testid="fullscreen-timer-controls"]')).toBeNull();
+    });
+  });
+
+  describe('setFullscreenTimerPlaying and getFullscreenTimerPlaying', () => {
+    it('should return undefined when no timer controls exist', () => {
+      const container = document.createElement('div');
+      document.body.appendChild(container);
+      const cleanup = initFullscreenManager({ container, mode: 'wall-clock' });
+
+      expect(getFullscreenTimerPlaying()).toBeUndefined();
+
+      cleanup();
+    });
+
+    it('should update and return timer playing state', () => {
+      const container = document.createElement('div');
+      document.body.appendChild(container);
+      const cleanup = initFullscreenManager({ container, mode: 'timer', initialTimerPlaying: true });
+
+      expect(getFullscreenTimerPlaying()).toBe(true);
+
+      setFullscreenTimerPlaying(false);
+      expect(getFullscreenTimerPlaying()).toBe(false);
+
+      setFullscreenTimerPlaying(true);
+      expect(getFullscreenTimerPlaying()).toBe(true);
+
+      cleanup();
+    });
+  });
+
+  describe('hover persistence (WCAG 1.4.13)', () => {
+    it('should not auto-hide while hovering over exit button (AC4.8)', () => {
+      const container = document.createElement('div');
+      document.body.appendChild(container);
+      const cleanup = initFullscreenManager({ container, mode: 'timer' });
+      const exitButton = document.getElementById('exit-fullscreen-button') as HTMLButtonElement;
+      const timerControls = document.querySelector('[data-testid="fullscreen-timer-controls"]') as HTMLElement;
+
+      // Enter fullscreen and show controls
+      (document as Document & { webkitFullscreenElement?: Element }).webkitFullscreenElement = container;
+      document.dispatchEvent(new Event('fullscreenchange'));
+      document.dispatchEvent(new Event('mousemove'));
+
+      expect(exitButton.getAttribute('data-visible')).toBe('true');
+      expect(timerControls.getAttribute('data-visible')).toBe('true');
+
+      // Hover over exit button
+      exitButton.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+
+      // Advance time - should NOT hide because we're hovering
+      vi.advanceTimersByTime(EXIT_BUTTON_HIDE_DELAY_MS + 100);
+
+      expect(exitButton.getAttribute('data-visible')).toBe('true');
+      expect(timerControls.getAttribute('data-visible')).toBe('true');
+
+      // Mouse leaves - should start hide timer again
+      exitButton.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+      vi.advanceTimersByTime(EXIT_BUTTON_HIDE_DELAY_MS + 100);
+
+      expect(exitButton.getAttribute('data-visible')).toBe('false');
+      expect(timerControls.getAttribute('data-visible')).toBe('false');
+
+      cleanup();
+    });
+
+    it('should not auto-hide while hovering over timer controls', () => {
+      const container = document.createElement('div');
+      document.body.appendChild(container);
+      const cleanup = initFullscreenManager({ container, mode: 'timer' });
+      const timerControls = document.querySelector('[data-testid="fullscreen-timer-controls"]') as HTMLElement;
+
+      // Enter fullscreen and show controls
+      (document as Document & { webkitFullscreenElement?: Element }).webkitFullscreenElement = container;
+      document.dispatchEvent(new Event('fullscreenchange'));
+      document.dispatchEvent(new Event('mousemove'));
+
+      expect(timerControls.getAttribute('data-visible')).toBe('true');
+
+      // Hover over timer controls
+      timerControls.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+
+      // Advance time - should NOT hide because we're hovering
+      vi.advanceTimersByTime(EXIT_BUTTON_HIDE_DELAY_MS + 100);
+
+      expect(timerControls.getAttribute('data-visible')).toBe('true');
+
+      cleanup();
+    });
+  });
+
+  describe('focus restoration (AC4.4)', () => {
+    it('should blur focused control when auto-hide triggers', () => {
+      const container = document.createElement('div');
+      document.body.appendChild(container);
+      const cleanup = initFullscreenManager({ container, mode: 'timer' });
+      const playPauseButton = document.querySelector('[data-testid="fullscreen-timer-play-pause"]') as HTMLButtonElement;
+
+      // Enter fullscreen and show controls
+      (document as Document & { webkitFullscreenElement?: Element }).webkitFullscreenElement = container;
+      document.dispatchEvent(new Event('fullscreenchange'));
+      document.dispatchEvent(new Event('mousemove'));
+
+      // Focus play/pause button
+      playPauseButton.focus();
+      expect(document.activeElement).toBe(playPauseButton);
+
+      // Advance time to trigger auto-hide
+      vi.advanceTimersByTime(EXIT_BUTTON_HIDE_DELAY_MS + 100);
+
+      // Focus should NOT be on the now-hidden button anymore
+      // (in real browser it goes to body, in JSDOM it may vary)
+      expect(document.activeElement).not.toBe(playPauseButton);
 
       cleanup();
     });

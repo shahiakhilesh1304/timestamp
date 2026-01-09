@@ -56,7 +56,7 @@ export const ${snakeUpper}_CONFIG: ThemeConfig = {
    *
    * @example
    * dependencies: [
-   *   { name: 'package-name', url: 'https://github.com/owner/package' }
+   *   \\{ name: 'package-name', url: 'https://github.com/owner/package' \\}
    * ]
    */
   dependencies: [],

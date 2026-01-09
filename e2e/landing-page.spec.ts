@@ -200,3 +200,152 @@ test.describe('Theme Author Links', () => {
   });
 });
 
+test.describe('Landing Page - Help & FAQ Tab', () => {
+  test('should switch to Help tab and show help content', async ({ page }) => {
+    await page.goto('/');
+    await waitForLanding(page);
+
+    // Find and click the Help tab
+    const helpTab = page.getByRole('tab', { name: 'Help & FAQ' });
+    await expect(helpTab).toBeVisible();
+    await helpTab.click();
+
+    // Help content should be visible
+    const helpContent = page.getByTestId('help-content');
+    await expect(helpContent).toBeVisible();
+
+    // Create form should be hidden
+    const formContent = page.locator('.landing-form-content');
+    await expect(formContent).not.toBeVisible();
+  });
+
+  test('should switch back to Create tab', async ({ page }) => {
+    await page.goto('/');
+    await waitForLanding(page);
+
+    // Switch to Help tab first
+    await page.getByRole('tab', { name: 'Help & FAQ' }).click();
+    await expect(page.getByTestId('help-content')).toBeVisible();
+
+    // Switch back to Create tab
+    const createTab = page.getByRole('tab', { name: 'Create Countdown' });
+    await createTab.click();
+
+    // Form should be visible again
+    await expect(page.locator('.landing-form-content')).toBeVisible();
+    await expect(page.getByTestId('help-content')).not.toBeVisible();
+  });
+
+  test('should display all help sections', async ({ page }) => {
+    await page.goto('/');
+    await waitForLanding(page);
+
+    await page.getByRole('tab', { name: 'Help & FAQ' }).click();
+
+    // Check all section headings are present
+    await expect(page.getByRole('heading', { name: 'About Timestamp' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Countdown Modes' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Keyboard Shortcuts' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Features' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Frequently Asked Questions' })).toBeVisible();
+  });
+
+  test('should display keyboard shortcuts table', async ({ page }) => {
+    await page.goto('/');
+    await waitForLanding(page);
+
+    await page.getByRole('tab', { name: 'Help & FAQ' }).click();
+
+    // Shortcuts tables should be present (multiple tables for different groups)
+    const tables = page.locator('.help-shortcuts-table');
+    await expect(tables.first()).toBeVisible();
+    await expect(tables.first().locator('kbd').first()).toBeVisible();
+
+    // Check for group titles (use heading role for specificity)
+    await expect(page.getByRole('heading', { name: 'All Modes', level: 4 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Timer Mode Only', level: 4 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Theme Selector', level: 4 })).toBeVisible();
+
+    // Check for shortcuts from each group
+    // Note: Both F keys now use uppercase in help content (case-insensitive in actual shortcuts)
+    await expect(page.locator('kbd', { hasText: 'Space' })).toBeVisible(); // Timer only
+    await expect(page.locator('kbd', { hasText: 'Enter' })).toBeVisible(); // Timer only
+    await expect(page.locator('kbd', { hasText: 'Escape' })).toBeVisible(); // All modes
+
+    // Check action descriptions (use role=cell to avoid FAQ content matches)
+    const shortcutsSection = page.locator('[aria-labelledby="help-shortcuts-title"]');
+    await expect(shortcutsSection.getByRole('cell', { name: 'Toggle fullscreen' })).toBeVisible();
+    await expect(shortcutsSection.getByRole('cell', { name: 'Play/Pause toggle' })).toBeVisible();
+  });
+
+  test('should display FAQ questions and answers', async ({ page }) => {
+    await page.goto('/');
+    await waitForLanding(page);
+
+    await page.getByRole('tab', { name: 'Help & FAQ' }).click();
+
+    // FAQ list should be present
+    const faqList = page.locator('.help-faq-list');
+    await expect(faqList).toBeVisible();
+
+    // Check a specific FAQ question
+    await expect(page.getByText("Why don't keyboard shortcuts work on mobile?")).toBeVisible();
+  });
+
+  test('should navigate tabs with keyboard', async ({ page }) => {
+    await page.goto('/');
+    await waitForLanding(page);
+
+    // Focus the first tab
+    const createTab = page.getByRole('tab', { name: 'Create Countdown' });
+    await createTab.focus();
+    await expect(createTab).toBeFocused();
+
+    // Arrow right to move to Help tab
+    await page.keyboard.press('ArrowRight');
+    const helpTab = page.getByRole('tab', { name: 'Help & FAQ' });
+    await expect(helpTab).toBeFocused();
+
+    // Press Enter to activate
+    await page.keyboard.press('Enter');
+    await expect(page.getByTestId('help-content')).toBeVisible();
+  });
+
+  test('should have proper ARIA attributes on tabs', async ({ page }) => {
+    await page.goto('/');
+    await waitForLanding(page);
+
+    const createTab = page.getByRole('tab', { name: 'Create Countdown' });
+    const helpTab = page.getByRole('tab', { name: 'Help & FAQ' });
+
+    // Create tab should be selected by default
+    await expect(createTab).toHaveAttribute('aria-selected', 'true');
+    await expect(helpTab).toHaveAttribute('aria-selected', 'false');
+
+    // Switch to Help tab
+    await helpTab.click();
+
+    // ARIA states should update
+    await expect(createTab).toHaveAttribute('aria-selected', 'false');
+    await expect(helpTab).toHaveAttribute('aria-selected', 'true');
+  });
+
+  test('should preserve form state when switching tabs', async ({ page }) => {
+    await page.goto('/');
+    await waitForLanding(page);
+
+    // Fill in some form data
+    await page.getByTestId('landing-mode-timer').check();
+    await page.getByTestId('landing-duration-minutes').fill('5');
+
+    // Switch to Help tab and back
+    await page.getByRole('tab', { name: 'Help & FAQ' }).click();
+    await expect(page.getByTestId('help-content')).toBeVisible();
+
+    await page.getByRole('tab', { name: 'Create Countdown' }).click();
+
+    // Form data should be preserved
+    await expect(page.getByTestId('landing-mode-timer')).toBeChecked();
+    await expect(page.getByTestId('landing-duration-minutes')).toHaveValue('5');
+  });
+});

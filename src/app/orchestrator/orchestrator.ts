@@ -13,8 +13,11 @@ import { buildShareUrls, type ShareTargets } from '@core/url';
 import { type AccessibilityManager, createAccessibilityManager } from '@core/utils/accessibility';
 import { DEFAULT_THEME_ID } from '@themes/registry';
 
+import { requestFullscreen, setFullscreenTimerPlaying } from '@/components/countdown-buttons/fullscreen-manager';
+
 import { transitionToCelebrated } from './celebration-transitions';
 import { createPageController, type PageController } from './controllers';
+import { cleanupKeyboardShortcuts, initKeyboardShortcuts } from './keyboard-shortcuts';
 import { getCountdownAccessibleName, setupThemeContainer } from './theme-manager/theme-focus-preservation';
 import { createThemeRenderer, getCelebrationDisplay, getThemeConfig } from './theme-manager/theme-loader-factory';
 import { createThemeTransitionManager, type ThemeTransitionManager } from './theme-manager/theme-switcher';
@@ -28,13 +31,13 @@ import { hideLoadingElement, prepareContainer, restoreContainer } from './ui/con
 import { applyThemeColors, initializeColorMode, setupColorModeListener } from './ui/theme-color-manager';
 import { type ChromeController, createChromeController } from './ui/ui-chrome-visibility-manager';
 import {
-  createOptionalComponents,
-  createUIComponents,
-  destroyOptionalComponents,
-  destroyUIComponents,
-  setupModalHandlers,
-  type UIComponents,
-  type UIFactoryOptions,
+    createOptionalComponents,
+    createUIComponents,
+    destroyOptionalComponents,
+    destroyUIComponents,
+    setupModalHandlers,
+    type UIComponents,
+    type UIFactoryOptions,
 } from './ui/ui-factory';
 
 // Re-export for external consumers
@@ -321,6 +324,27 @@ export function createOrchestrator(options: OrchestratorOptions): Orchestrator {
     });
     timeLoop.start();
 
+    // Initialize keyboard shortcuts
+    initKeyboardShortcuts({
+      mode,
+      onTogglePlayPause: () => {
+        // Get current playing state from TimeLoop (source of truth) and toggle it
+        const currentlyPaused = timeLoop?.isPaused() ?? false;
+        const newPlaying = currentlyPaused; // If paused, we want to play (true). If playing, we want to pause (false)
+        // Sync both regular and fullscreen timer controls
+        uiComponents?.timerControls?.setPlaying(newPlaying);
+        setFullscreenTimerPlaying(newPlaying);
+        handleTimerPlayPauseToggle(newPlaying);
+      },
+      onReset: () => {
+        handleTimerReset();
+      },
+      onToggleFullscreen: async () => {
+        // F key toggles fullscreen in all modes (not just timer)
+        await requestFullscreen();
+      },
+    });
+
     stateManager.subscribe(handleStateChange);
     accessibilityManager.announceLoaded();
   }
@@ -390,6 +414,9 @@ export function createOrchestrator(options: OrchestratorOptions): Orchestrator {
 
       timeLoop?.stop();
       timeLoop = null;
+
+      // Cleanup keyboard shortcuts
+      cleanupKeyboardShortcuts();
 
       chromeController?.destroy();
       chromeController = null;

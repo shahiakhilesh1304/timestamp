@@ -5,7 +5,7 @@
  * This module is the foundation - other registry modules import from here.
  *
  * @remarks
- * This file is automatically updated when you run `npm run create-theme <name>`.
+ * This file is automatically updated when you run `npm run theme create <name>`.
  */
 
 import type { LandingPageRendererFactory, ThemeColors, ThemeConfig, ThemeDependency, TimePageRenderer } from '@core/types';
@@ -14,6 +14,7 @@ import { AKHIL_SQUARE_SHADOW_CONFIG } from '../akhil-square-shadow/config';
 import { CONTRIBUTION_GRAPH_CONFIG } from '../contribution-graph/config';
 // Import theme configs for colors (lightweight imports - no heavy dependencies)
 import { FIREWORKS_CONFIG } from '../fireworks/config';
+import { RING_CONFIG } from '../ring/config';
 
 /**
  * Static metadata (synchronous, lightweight).
@@ -59,7 +60,7 @@ function createRegistryEntry(
 
 /**
  * Theme Registry - Single Source of Truth
- * Themes are automatically added here by `npm run create-theme <name>`.
+ * Themes are automatically added here by `npm run theme create <name>`.
  */
 // Stryker disable all: Dynamic imports cannot be mutated
 const loadFireworksTheme = async (): Promise<LoadedThemeModule> => {
@@ -95,6 +96,7 @@ export const THEME_REGISTRY = {
   'akhil-square-shadow': createRegistryEntry(AKHIL_SQUARE_SHADOW_CONFIG, loadAkhilSquareShadowTheme),
   'contribution-graph': createRegistryEntry(CONTRIBUTION_GRAPH_CONFIG, loadContributionGraphTheme),
   fireworks: createRegistryEntry(FIREWORKS_CONFIG, loadFireworksTheme),
+  'ring': createRegistryEntry(RING_CONFIG, loadRingTheme),
 } as const satisfies Record<string, ThemeRegistryEntry>;
 
 /** Theme identifiers derived from THEME_REGISTRY keys. */

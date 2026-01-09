@@ -154,6 +154,10 @@ export function createUIComponents(options: UIFactoryOptions): UIComponents {
 
   components.fullscreenCleanup = initFullscreenManager({
     container: options.container,
+    mode: options.mode,
+    onTimerPlayPauseToggle: options.onTimerPlayPauseToggle,
+    onTimerReset: options.onTimerReset,
+    initialTimerPlaying: true,
   });
 
   return components;
@@ -325,17 +329,19 @@ export function updateOptionalComponents(
  * 
  * @param components - UI components container
  * @param isMobile - Whether current viewport is mobile size
+ * @param options - Optional factory options for timer mode callbacks
  * 
  * @example
  * ```typescript
  * window.addEventListener('resize', () => {
- *   updateFullscreenButtonForViewport(uiComponents, window.innerWidth <= 600);
+ *   updateFullscreenButtonForViewport(uiComponents, window.innerWidth <= 600, factoryOptions);
  * });
  * ```
  */
 export function updateFullscreenButtonForViewport(
   components: UIComponents,
-  isMobile: boolean
+  isMobile: boolean,
+  options?: Pick<UIFactoryOptions, 'mode' | 'onTimerPlayPauseToggle' | 'onTimerReset'>
 ): void {
   if (isMobile) {
     if (components.fullscreenButton) {
@@ -361,6 +367,10 @@ export function updateFullscreenButtonForViewport(
       const container = document.getElementById('app');
       components.fullscreenCleanup = initFullscreenManager({
         container,
+        mode: options?.mode,
+        onTimerPlayPauseToggle: options?.onTimerPlayPauseToggle,
+        onTimerReset: options?.onTimerReset,
+        initialTimerPlaying: true,
       });
     }
   } else {

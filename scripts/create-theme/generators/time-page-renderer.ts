@@ -22,7 +22,7 @@ export function generateTimePageRendererTs(themeName: string): string {
  *
  * Pulsing ring animation that intensifies as countdown approaches zero.
  *
- * Intensity levels: CALM (>60s) → BUILDING (30-60s) → INTENSE (10-30s) → FINALE (<10s)
+ * Intensity levels: CALM (\\>60s) → BUILDING (30-60s) → INTENSE (10-30s) → FINALE (\\<10s)
  * Celebration: Traveling light effect around ring circumference
  *
  * Key patterns: State object, resource tracking, 30fps throttling, pause/resume hooks
@@ -64,10 +64,10 @@ const DEFAULT_COMPLETION_MESSAGE = '🎉 Happy New Year!';
  * Create a ${pascal} time page renderer.
  *
  * Features a pulsing ring animation that intensifies as countdown approaches zero:
- * - CALM (>60s): Slow, gentle pulse
+ * - CALM (\\>60s): Slow, gentle pulse
  * - BUILDING (30-60s): Faster pulse, increased glow
  * - INTENSE (10-30s): Rapid pulse, dramatic glow
- * - FINALE (<10s): Maximum intensity
+ * - FINALE (\\<10s): Maximum intensity
  *
  * On celebration, a light travels around the ring creating a dynamic effect.
  *

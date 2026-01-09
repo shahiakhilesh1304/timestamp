@@ -2,9 +2,25 @@
  * Timer Controls Component Tests
  * Tests for play/pause toggle and reset button functionality.
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { cleanupDOM } from '@/test-utils/dom-helpers';
-import { createTimerControls, type TimerControlsController } from './timer-controls';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+    createFullscreenTimerControls,
+    createTimerControls,
+    type FullscreenTimerControlsController,
+    type TimerControlsController,
+} from './timer-controls';
+
+/** Shared test helper: Assert play/pause button state */
+function expectPlayPauseState(
+  button: HTMLButtonElement,
+  isPlaying: boolean,
+  expectedLabel: string,
+  expectedPressed: string
+): void {
+  expect(button.getAttribute('aria-label')).toBe(expectedLabel);
+  expect(button.getAttribute('aria-pressed')).toBe(expectedPressed);
+}
 
 describe('TimerControls', () => {
   let controls: TimerControlsController;
@@ -320,6 +336,200 @@ describe('TimerControls', () => {
       button.click(); // Space triggers click on buttons
       
       expect(onReset).toHaveBeenCalledTimes(1);
+    });
+  });
+});
+
+describe('FullscreenTimerControls', () => {
+  let fsControls: FullscreenTimerControlsController;
+
+  beforeEach(() => {
+    cleanupDOM();
+  });
+
+  afterEach(() => {
+    fsControls?.destroy();
+  });
+
+  describe('createFullscreenTimerControls', () => {
+    it('should create container with toolbar role (AC4.7)', () => {
+      fsControls = createFullscreenTimerControls();
+      const element = fsControls.getElement();
+
+      expect(element.getAttribute('role')).toBe('toolbar');
+      expect(element.getAttribute('aria-label')).toBe('Timer controls');
+    });
+
+    it('should create container with correct test id', () => {
+      fsControls = createFullscreenTimerControls();
+      const element = fsControls.getElement();
+
+      expect(element.dataset.testid).toBe('fullscreen-timer-controls');
+    });
+
+    it('should create play/pause button with aria-pressed (AC4.5)', () => {
+      fsControls = createFullscreenTimerControls({ initialPlaying: true });
+      const button = fsControls.getElement().querySelector('[data-testid="fullscreen-timer-play-pause"]') as HTMLButtonElement;
+
+      expect(button).not.toBeNull();
+      expect(button.getAttribute('aria-pressed')).toBe('false'); // When playing, not paused
+    });
+
+    it('should create reset button with correct aria-label (AC4.2)', () => {
+      fsControls = createFullscreenTimerControls();
+      const button = fsControls.getElement().querySelector('[data-testid="fullscreen-timer-reset"]') as HTMLButtonElement;
+
+      expect(button).not.toBeNull();
+      expect(button.getAttribute('aria-label')).toBe('Reset timer to original duration');
+    });
+
+    it('should start hidden by default', () => {
+      fsControls = createFullscreenTimerControls();
+      const element = fsControls.getElement();
+
+      expect(element.getAttribute('data-visible')).toBe('false');
+      expect(fsControls.isVisible()).toBe(false);
+    });
+  });
+
+  describe('play/pause button', () => {
+    it.each([
+      { initialPlaying: true, expectedLabel: 'Pause timer', expectedPressed: 'false' },
+      { initialPlaying: false, expectedLabel: 'Resume timer', expectedPressed: 'true' },
+    ])('should set correct state when initialPlaying=$initialPlaying', ({ initialPlaying, expectedLabel, expectedPressed }) => {
+      fsControls = createFullscreenTimerControls({ initialPlaying });
+      const button = fsControls.getElement().querySelector('[data-testid="fullscreen-timer-play-pause"]') as HTMLButtonElement;
+
+      expectPlayPauseState(button, initialPlaying, expectedLabel, expectedPressed);
+    });
+
+    it('should toggle aria-pressed on click', () => {
+      fsControls = createFullscreenTimerControls({ initialPlaying: true });
+      const button = fsControls.getElement().querySelector('[data-testid="fullscreen-timer-play-pause"]') as HTMLButtonElement;
+
+      button.click();
+      expect(button.getAttribute('aria-pressed')).toBe('true');
+
+      button.click();
+      expect(button.getAttribute('aria-pressed')).toBe('false');
+    });
+
+    it('should invoke onPlayPauseToggle callback with new state', () => {
+      const onPlayPauseToggle = vi.fn();
+      fsControls = createFullscreenTimerControls({ initialPlaying: true, onPlayPauseToggle });
+      const button = fsControls.getElement().querySelector('[data-testid="fullscreen-timer-play-pause"]') as HTMLButtonElement;
+
+      button.click();
+      expect(onPlayPauseToggle).toHaveBeenCalledWith(false);
+
+      button.click();
+      expect(onPlayPauseToggle).toHaveBeenCalledWith(true);
+    });
+  });
+
+  describe('reset button', () => {
+    it('should invoke onReset callback on click', () => {
+      const onReset = vi.fn();
+      fsControls = createFullscreenTimerControls({ onReset });
+      const button = fsControls.getElement().querySelector('[data-testid="fullscreen-timer-reset"]') as HTMLButtonElement;
+
+      button.click();
+      expect(onReset).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('visibility', () => {
+    it('should show controls when show() is called', () => {
+      fsControls = createFullscreenTimerControls();
+      const element = fsControls.getElement();
+
+      fsControls.show();
+
+      expect(element.getAttribute('data-visible')).toBe('true');
+      expect(element.classList.contains('show-fullscreen-controls')).toBe(true);
+      expect(fsControls.isVisible()).toBe(true);
+    });
+
+    it('should hide controls when hide() is called', () => {
+      fsControls = createFullscreenTimerControls();
+      const element = fsControls.getElement();
+
+      fsControls.show();
+      fsControls.hide();
+
+      expect(element.getAttribute('data-visible')).toBe('false');
+      expect(element.classList.contains('show-fullscreen-controls')).toBe(false);
+      expect(fsControls.isVisible()).toBe(false);
+    });
+  });
+
+  describe('setPlaying', () => {
+    it('should update internal state', () => {
+      fsControls = createFullscreenTimerControls({ initialPlaying: true });
+
+      fsControls.setPlaying(false);
+      expect(fsControls.isPlaying()).toBe(false);
+
+      fsControls.setPlaying(true);
+      expect(fsControls.isPlaying()).toBe(true);
+    });
+
+    it('should update button aria-label and aria-pressed', () => {
+      fsControls = createFullscreenTimerControls({ initialPlaying: true });
+      const button = fsControls.getElement().querySelector('[data-testid="fullscreen-timer-play-pause"]') as HTMLButtonElement;
+
+      fsControls.setPlaying(false);
+      expect(button.getAttribute('aria-label')).toBe('Resume timer');
+      expect(button.getAttribute('aria-pressed')).toBe('true');
+
+      fsControls.setPlaying(true);
+      expect(button.getAttribute('aria-label')).toBe('Pause timer');
+      expect(button.getAttribute('aria-pressed')).toBe('false');
+    });
+  });
+
+  describe('destroy', () => {
+    it('should remove element from DOM', () => {
+      fsControls = createFullscreenTimerControls();
+      const element = fsControls.getElement();
+      document.body.appendChild(element);
+
+      expect(document.body.contains(element)).toBe(true);
+
+      fsControls.destroy();
+
+      expect(document.body.contains(element)).toBe(false);
+    });
+
+    it('should remove event listeners', () => {
+      const onPlayPauseToggle = vi.fn();
+      const onReset = vi.fn();
+      fsControls = createFullscreenTimerControls({ onPlayPauseToggle, onReset });
+      const element = fsControls.getElement();
+      document.body.appendChild(element);
+
+      const playPauseButton = element.querySelector('[data-testid="fullscreen-timer-play-pause"]') as HTMLButtonElement;
+      const resetButton = element.querySelector('[data-testid="fullscreen-timer-reset"]') as HTMLButtonElement;
+
+      fsControls.destroy();
+
+      playPauseButton.click();
+      resetButton.click();
+
+      expect(onPlayPauseToggle).not.toHaveBeenCalled();
+      expect(onReset).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('focus order (AC4.3)', () => {
+    it('should have buttons in correct DOM order: play/pause → reset', () => {
+      fsControls = createFullscreenTimerControls();
+      const element = fsControls.getElement();
+      const buttons = element.querySelectorAll('button');
+
+      expect(buttons.length).toBe(2);
+      expect(buttons[0].dataset.testid).toBe('fullscreen-timer-play-pause');
+      expect(buttons[1].dataset.testid).toBe('fullscreen-timer-reset');
     });
   });
 });
