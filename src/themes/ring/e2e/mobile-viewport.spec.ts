@@ -5,10 +5,9 @@
  * These tests verify that the theme renders properly on mobile devices.
  *
  * Add more E2E tests here for theme-specific behaviors:
- * - Celebration animations (see contribution-graph/e2e/celebration-phases.spec.ts)
- * - Initial render timing (see contribution-graph/e2e/initial-render.spec.ts)
- * - Performance benchmarks (see contribution-graph/e2e/activity-performance.spec.ts)
+ * - Celebration animations
  * - Theme-specific visual features
+ * - Performance benchmarks
  */
 
 import { expect, test } from '@playwright/test';

@@ -55,7 +55,7 @@ You implement plan documents step-by-step with **atomic state updates** that ena
 |-----------|---------------------|
 | Code changes | `npx tsc --noEmit && npm run lint` |
 | Test changes | `npm run test -- {pattern}` |
-| UI changes | `npm run test:e2e:fast -- --grep "{pattern}"` |
+| UI changes | `npm run test:e2e -- --grep "{pattern}"` |
 | Full phase | `npm run validate:iteration` |
 | Final | `npm run validate:iteration` |
 
@@ -412,7 +412,7 @@ runSubagent("Specialist - E2E",
    ## EXECUTION STEPS
    1. Analyze failure (selector issue, timing, logic)
    2. Implement fix directly
-   3. Run \`npm run test:e2e:fast -- --grep \"{pattern}\"\`
+   3. Run \`npm run test:e2e -- --grep \"{pattern}\"\`
    
    ## RETURN FORMAT
    \`\`\`json

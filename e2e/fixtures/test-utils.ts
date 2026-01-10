@@ -38,10 +38,16 @@ async function dismissInstallPromptIfVisible(page: Page): Promise<void> {
 export async function waitForCountdown(page: Page): Promise<void> {
   // First wait for element to exist in DOM
   await expect(page.getByTestId('countdown-display').first()).toBeAttached({ timeout: 10000 });
-  // Then wait for it to have content (squares rendered)
+  // Then wait for countdown display to be ready
+  // - Canvas-based themes: the countdown-display IS a canvas element
+  // - DOM-based themes: countdown-display is a container with children
   await page.waitForFunction(() => {
-    const grid = document.querySelector('[data-testid="countdown-display"]');
-    return grid && grid.children.length > 0;
+    const display = document.querySelector('[data-testid="countdown-display"]');
+    if (!display) return false;
+    // If it's a canvas element, it's ready immediately (canvas-based renderer)
+    if (display.tagName === 'CANVAS') return true;
+    // Otherwise check for children (DOM-based renderer)
+    return display.children.length > 0;
   }, { timeout: 10000 });
   // Dismiss install prompt if it's blocking interactions
   await dismissInstallPromptIfVisible(page);
@@ -60,8 +66,14 @@ export async function waitForCountdown(page: Page): Promise<void> {
 export async function waitForLandingPage(page: Page): Promise<void> {
   await expect(page.getByTestId('landing-page')).toBeVisible({ timeout: 10000 });
   // Wait for default theme background to render (async theme loading)
-  // Landing page uses the same grid as countdown but with testid 'landing-grid'
-  await page.waitForSelector('.contribution-graph-square, .star', { timeout: 5000, state: 'attached' });
+  // Landing page renders theme background in landing-theme-background element
+  // Canvas-based themes use canvas, DOM-based themes have other children
+  await page.waitForFunction(() => {
+    const bg = document.querySelector('[data-testid="landing-theme-background"]');
+    if (!bg) return false;
+    // Check for canvas element (canvas-based themes) or other DOM elements
+    return bg.querySelector('canvas') !== null || bg.children.length > 0;
+  }, { timeout: 5000 });
   // Dismiss install prompt if it's blocking interactions
   await dismissInstallPromptIfVisible(page);
 }
@@ -110,9 +122,15 @@ export async function switchTheme(page: Page): Promise<void> {
   // Wait for modal to close - increase timeout and add extra wait for theme to load
   await expect(page.getByTestId('theme-modal')).not.toBeVisible({ timeout: 5000 });
   // Wait for countdown to stabilize after theme switch
+  // - Canvas-based themes: the countdown-display IS a canvas element
+  // - DOM-based themes: countdown-display is a container with children
   await page.waitForFunction(() => {
-    const grid = document.querySelector('[data-testid="countdown-display"]');
-    return grid && grid.children.length > 0;
+    const display = document.querySelector('[data-testid="countdown-display"]');
+    if (!display) return false;
+    // If it's a canvas element, it's ready immediately (canvas-based renderer)
+    if (display.tagName === 'CANVAS') return true;
+    // Otherwise check for children (DOM-based renderer)
+    return display.children.length > 0;
   }, { timeout: 5000 });
 }
 

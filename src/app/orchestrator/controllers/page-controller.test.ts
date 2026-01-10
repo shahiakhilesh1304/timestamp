@@ -4,8 +4,8 @@
  * @module orchestrator/controllers/page-controller.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { reducedMotionManager } from '@core/utils/accessibility';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPageController, type AnimationStateAwareRenderer } from './page-controller';
 
 // Mock the accessibility module
@@ -268,6 +268,8 @@ describe('createPageController', () => {
           reason: 'page-hidden',
         })
       );
+      // PERF: Verify attribute is set to pause CSS animations
+      expect(document.documentElement.getAttribute('data-reduced-motion')).toBe('true');
       controller.destroy();
     });
 
@@ -279,6 +281,16 @@ describe('createPageController', () => {
         removeAttributeOnDestroy: true,
       });
       controller.init();
+
+      // First hide the tab
+      Object.defineProperty(document, 'visibilityState', {
+        configurable: true,
+        value: 'hidden',
+      });
+      document.dispatchEvent(new Event('visibilitychange'));
+
+      // Clear mock calls
+      vi.clearAllMocks();
 
       // Simulate tab becoming visible
       Object.defineProperty(document, 'visibilityState', {
@@ -294,10 +306,12 @@ describe('createPageController', () => {
           reason: 'page-hidden',
         })
       );
+      // PERF: Verify attribute is cleared to resume CSS animations
+      expect(document.documentElement.getAttribute('data-reduced-motion')).toBe('false');
       controller.destroy();
     });
 
-    it('should handle visibility changes with null renderer gracefully', () => {
+    it('should set data-reduced-motion attribute even with null renderer', () => {
       mockIsActive.mockReturnValue(false);
       let currentRenderer: AnimationStateAwareRenderer | null = mockRenderer;
 
@@ -310,14 +324,15 @@ describe('createPageController', () => {
       // Set renderer to null (simulating theme transition)
       currentRenderer = null;
 
-      // Should not throw when visibility changes with null renderer
-      expect(() => {
-        Object.defineProperty(document, 'visibilityState', {
-          configurable: true,
-          value: 'hidden',
-        });
-        document.dispatchEvent(new Event('visibilitychange'));
-      }).not.toThrow();
+      // Should not throw and should still update attribute
+      Object.defineProperty(document, 'visibilityState', {
+        configurable: true,
+        value: 'hidden',
+      });
+      document.dispatchEvent(new Event('visibilitychange'));
+
+      // PERF: Attribute should still be set to pause CSS animations even without renderer
+      expect(document.documentElement.getAttribute('data-reduced-motion')).toBe('true');
 
       controller.destroy();
     });

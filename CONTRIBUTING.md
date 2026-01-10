@@ -10,8 +10,10 @@ Thank you for your interest in contributing to Timestamp! We welcome contributio
 | `npm run dev`                    | Start development server (port 5173)    |
 | `npm run build`                  | Build for production                     |
 | `npm run test`                   | Run unit tests (Vitest)                  |
-| `npm run test:e2e`               | Run E2E tests (Playwright)               |
-| `npm run test:e2e:fast`          | Fast E2E (Chromium only, 15s timeout)   |
+| `npm run test:e2e`               | Fast E2E tests (Chromium, excludes @perf) |
+| `npm run test:e2e:cross-browser` | E2E tests across all browsers            |
+| `npm run test:e2e:perf`          | Performance profiling tests (long)       |
+| `npm run test:e2e:full`          | Complete E2E suite (CI)                  |
 | `npm run lint`                   | Run ESLint                               |
 | `npm run theme create <name>`    | Scaffold a new theme                     |
 | `npm run validate:iteration`     | Fast validation (for development)        |

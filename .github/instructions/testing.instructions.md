@@ -327,21 +327,56 @@ describe('ThemeController', () => {
 ### E2E Development Mode
 
 ```bash
-# Fast mode: chromium only, 4 parallel workers, 15s timeout, no retries
-npm run test:e2e:fast
+# Default mode: chromium only, 4 parallel workers, 15s timeout, excludes @perf tests
+npm run test:e2e
 
 # Or with specific test filtering
-npm run test:e2e:fast -- --grep "theme switching"
+npm run test:e2e -- --grep "theme switching"
 ```
 
-> ⚠️ **CRITICAL**: Agents must ONLY run `npm run test:e2e:fast`, NEVER `npm run test:e2e`.
+> ⚠️ **IMPORTANT**: Agents should use `npm run test:e2e` (fast mode, excludes @perf tests).
+> For performance tests, use `npm run test:e2e:perf` separately.
+> Cross-browser testing: `npm run test:e2e:cross-browser`
 >
-> **Fast mode configuration:**
+> **Default mode configuration:**
 > - `--project=chromium` - Single browser only
 > - `--timeout=15000` - 15s test timeout (vs 30s in full mode)
 > - `--retries=0` - No retries for faster feedback
 > - `--workers=4` - Parallel execution
 > - `--reporter=dot` - Compact output
+
+### Performance Profiling Tests
+
+Deep performance analysis tests using CDP for CPU profiling, memory leak detection, and render counting. These tests produce JSON artifacts in `test-results/perf-profiles/`.
+
+```bash
+# Run perf tests for ALL themes (audit mode)
+npm run test:e2e:perf:all
+
+# Run perf tests for a SPECIFIC theme
+PERF_THEME=contribution-graph npm run test:e2e:perf
+
+# Examples:
+PERF_THEME=fireworks npm run test:e2e:perf
+PERF_THEME=ring npm run test:e2e:perf
+```
+
+**Test categories** (all use `@perf` tag):
+- **CPU Profiling**: 60-second animation profiling, theme switch profiling
+- **Memory Leak Detection**: Theme switch cycles, prolonged animation
+- **Render Counting**: Paint operations, layout shifts, DOM mutations
+- **Countdown Completion**: Full 90-second countdown cycle with phase analysis
+- **Long Task Detection**: Main thread blocking analysis
+
+**When to use:**
+- After optimizing a theme's rendering/animation code
+- When adding a new theme (PR workflow auto-detects new themes)
+- Before merging significant performance changes
+- When investigating reported performance issues
+
+**CI Integration:**
+- PRs with `e2e` label that add new themes automatically run perf profiling
+- Use `workflow_dispatch` to manually trigger with `run-perf: true`
 
 ### Test Configuration Details
 
@@ -373,8 +408,9 @@ npm run test:e2e:fast -- --grep "theme switching"
 - Local: `dot` (compact)
 
 **Timeouts**:
-- Full mode (`test:e2e`): 30s test, 10s expect, 30s navigation
-- Fast mode (`test:e2e:fast`): 15s test, 10s expect, 30s navigation
+- Default mode (`test:e2e`): 15s test, 10s expect, 30s navigation (chromium, excludes @perf)
+- Cross-browser mode (`test:e2e:cross-browser`): 30s test, 10s expect, 30s navigation
+- Performance mode (`test:e2e:perf`): 360s test (6 minutes), chromium only, @perf tests only
 
 **Retries**:
 - Full mode: 1 retry on failure

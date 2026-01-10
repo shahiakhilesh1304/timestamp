@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { calculateGridDimensions, calculateLineWidth, formatCountdown, getSquare } from './index';
-import { GRID_CONFIG, MAX_NODES } from '../../config';
+import { GRID_CONFIG } from '../../config';
 import type { GridState, Square } from '../../types';
+import { calculateLineWidth, formatCountdown, getSquare } from './index';
 
 function createGridState(cols: number, rows: number): GridState {
   const squares: Square[] = [];
@@ -118,26 +118,5 @@ describe('formatCountdown', () => {
     );
 
     expect(lines).toEqual(expected);
-  });
-});
-
-describe('calculateGridDimensions', () => {
-  it('should cap total nodes at MAX_NODES for very large viewports', () => {
-    const { cols, rows } = calculateGridDimensions(20_000, 20_000);
-    expect(cols * rows).toBeLessThanOrEqual(MAX_NODES);
-    expect(cols).toBeGreaterThan(0);
-    expect(rows).toBeGreaterThan(0);
-  });
-
-  it('should respect minimum square size when viewport is tiny', () => {
-    const result = calculateGridDimensions(10, 10);
-    expect(result.squareSize).toBe(GRID_CONFIG.minSquareSize);
-    expect(result.cols).toBeGreaterThanOrEqual(1);
-    expect(result.rows).toBeGreaterThanOrEqual(1);
-  });
-
-  it('should produce non-negative gap values', () => {
-    const result = calculateGridDimensions(400, 300);
-    expect(result.gap).toBeGreaterThanOrEqual(0);
   });
 });

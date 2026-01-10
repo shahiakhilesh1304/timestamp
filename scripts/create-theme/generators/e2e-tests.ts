@@ -17,8 +17,7 @@
  * // Generated file structure:
  * // src/themes/my-theme/e2e/mobile-viewport.spec.ts
  *
- * @see src/themes/contribution-graph/e2e/ - Complex theme with multiple E2E tests
- * @see src/themes/fireworks/e2e/mobile-viewport.spec.ts - Simpler theme example
+ * @see src/themes/fireworks/e2e/mobile-viewport.spec.ts - Example theme E2E test
  */
 import { toPascalCase } from '../utils/string-utils';
 
@@ -33,10 +32,9 @@ export function generateE2EMobileViewportSpec(themeName: string): string {
  * These tests verify that the theme renders properly on mobile devices.
  *
  * Add more E2E tests here for theme-specific behaviors:
- * - Celebration animations (see contribution-graph/e2e/celebration-phases.spec.ts)
- * - Initial render timing (see contribution-graph/e2e/initial-render.spec.ts)
- * - Performance benchmarks (see contribution-graph/e2e/activity-performance.spec.ts)
+ * - Celebration animations
  * - Theme-specific visual features
+ * - Performance benchmarks
  */
 
 import { expect, test } from '@playwright/test';

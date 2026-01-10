@@ -1,4 +1,5 @@
 # Run E2E tests for pull requests labeled 'e2e'
+# Optionally runs performance profiling tests for PRs that add new themes
 name: "PR E2E on label"
 
 on:
@@ -6,6 +7,15 @@ on:
     types: [labeled, synchronize]
     branches: [ "main" ]
   workflow_dispatch:
+    inputs:
+      run-perf:
+        description: "Run performance profiling tests"
+        type: boolean
+        default: false
+      perf-theme:
+        description: "Theme to profile (leave empty for all themes)"
+        type: string
+        required: false
 
 permissions:
   contents: read
@@ -15,3 +25,132 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'e2e') }}
     uses: ./.github/workflows/e2e.yml
     secrets: inherit
+
+  # Detect if PR adds a new theme by checking for new directories in src/themes/
+  detect-new-theme:
+    if: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'e2e') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      new-theme: ${{ steps.detect.outputs.theme }}
+      has-new-theme: ${{ steps.detect.outputs.has-new-theme }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 0  # Full history for diff
+
+      - name: Detect new theme in PR
+        id: detect
+        run: |
+          # Get list of new directories in src/themes/ compared to main
+          NEW_THEMES=$(git diff --name-only --diff-filter=A origin/main...HEAD | \
+            grep -E '^src/themes/[^/]+/' | \
+            sed 's|src/themes/\([^/]*\)/.*|\1|' | \
+            grep -v -E '^(registry|shared|test-)' | \
+            sort -u | \
+            head -1)
+          
+          if [ -n "$NEW_THEMES" ]; then
+            echo "Detected new theme: $NEW_THEMES"
+            echo "theme=$NEW_THEMES" >> $GITHUB_OUTPUT
+            echo "has-new-theme=true" >> $GITHUB_OUTPUT
+          else
+            echo "No new theme detected"
+            echo "theme=" >> $GITHUB_OUTPUT
+            echo "has-new-theme=false" >> $GITHUB_OUTPUT
+          fi
+
+  # Run perf profiling for new themes when e2e label is present
+  # Quick tests run in parallel on one runner, deep tests sharded across multiple runners
+  perf-quick:
+    needs: [e2e-on-label, detect-new-theme]
+    if: |
+      always() &&
+      needs.e2e-on-label.result == 'success' &&
+      (
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.run-perf == 'true') ||
+        (github.event_name == 'pull_request' && needs.detect-new-theme.outputs.has-new-theme == 'true')
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      PERF_THEME: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.perf-theme || needs.detect-new-theme.outputs.new-theme }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: '.node-version'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run quick performance tests
+        run: |
+          echo "Running quick perf tests${PERF_THEME:+ for theme: $PERF_THEME}"
+          npx playwright test --project=chromium --timeout=60000 --retries=0 --workers=4 --grep '@perf-quick' --reporter=list
+
+      - name: Upload perf profiles
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: always()
+        with:
+          name: perf-profiles-quick
+          path: test-results/perf-profiles/
+          retention-days: 30
+
+  # Deep tests run sequentially on one runner (each test needs 60-90s observation)
+  # Sharding doesn't help since Playwright distributes by count, not duration
+  perf-deep:
+    needs: [e2e-on-label, detect-new-theme]
+    if: |
+      always() &&
+      needs.e2e-on-label.result == 'success' &&
+      (
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.run-perf == 'true') ||
+        (github.event_name == 'pull_request' && needs.detect-new-theme.outputs.has-new-theme == 'true')
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      PERF_THEME: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.perf-theme || needs.detect-new-theme.outputs.new-theme }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: '.node-version'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run deep performance tests
+        run: |
+          echo "Running deep perf tests${PERF_THEME:+ for theme: $PERF_THEME}"
+          npx playwright test --project=chromium --timeout=360000 --retries=0 --workers=1 --grep '@perf-deep' --reporter=list
+
+      - name: Upload perf profiles
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: always()
+        with:
+          name: perf-profiles-deep
+          path: test-results/perf-profiles/
+          retention-days: 30
+

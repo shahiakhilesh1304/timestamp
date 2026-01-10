@@ -1,9 +1,14 @@
-import { test, expect, type Page } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 const waitForLanding = async (page: Page) => {
   await expect(page.getByTestId('landing-page')).toBeVisible();
   // Wait for background to render (async theme loading)
-  await page.waitForSelector('.contribution-graph-square, .landing-star', { timeout: 5000 });
+  // Canvas-based themes use canvas, DOM-based themes use children
+  await page.waitForFunction(() => {
+    const bg = document.querySelector('[data-testid="landing-theme-background"]');
+    if (!bg) return false;
+    return bg.querySelector('canvas') !== null || bg.children.length > 0;
+  }, { timeout: 5000 });
 };
 
 const startTimerCountdown = async (page: Page, seconds = 5) => {

@@ -52,16 +52,13 @@ export const CONTRIBUTION_GRAPH_CONFIG: ThemeConfig = {
  */
 export const GRID_CONFIG = {
   minSquareSize: 4,
-  maxSquareSize: 16,
+  /** Base square size at 1920px viewport. Scales proportionally for larger screens. */
+  baseSquareSize: 16,
+  /** Maximum square size (cap for very large screens). */
+  maxSquareSize: 32,
   gapRatio: 0.2,
   edgePadding: 4,
 } as const;
-
-/**
- * Maximum number of grid squares to prevent performance issues.
- * If calculated grid exceeds this, dimensions are scaled down.
- */
-export const MAX_NODES = 5000;
 
 // =============================================================================
 // LAYOUT CONFIGURATION
@@ -104,6 +101,12 @@ export const CSS_CLASSES = {
   PHASE_BUILDING: 'phase-building',
   PHASE_INTENSE: 'phase-intense',
   PHASE_FINAL: 'phase-final',
+  /** Stagger delay classes for organic batch animation. */
+  STAGGER_0: 'stagger-0',
+  STAGGER_1: 'stagger-1',
+  STAGGER_2: 'stagger-2',
+  STAGGER_3: 'stagger-3',
+  STAGGER_4: 'stagger-4',
 } as const;
 
 // =============================================================================
@@ -132,12 +135,41 @@ const BASE_CLASS_STRINGS: readonly string[] = [
   `${CSS_CLASSES.SQUARE} intensity-4`,
 ];
 
-/** Pre-computed ambient class strings keyed by `${phase}-${intensity}`. */
+/**
+ * Number of stagger delay buckets for organic animation timing.
+ * 
+ * Squares added in the same tick are randomly assigned a stagger class (0-4)
+ * which applies a CSS animation-delay to spread out their start times.
+ * This creates overlapping fade-ins/fade-outs within each batch for a more
+ * organic, living feel while keeping JS overhead minimal.
+ * 
+ * Stagger delays are phase-aware:
+ * - stagger-0: 0% delay (immediate start)
+ * - stagger-1: 8% of animation duration
+ * - stagger-2: 16% of animation duration  
+ * - stagger-3: 24% of animation duration
+ * - stagger-4: 32% of animation duration
+ * 
+  * For example, in "building" phase (3.59s avg duration):
+ * - stagger-0: 0ms
+ * - stagger-1: ~287ms
+ * - stagger-2: ~574ms
+ * - stagger-3: ~862ms
+ * - stagger-4: ~1149ms
+ * 
+ * This spreads the batch across ~1.2s while the animation runs for ~3.6s,
+ * creating natural overlap.
+ */
+export const STAGGER_BUCKET_COUNT = 5;
+
+/** Pre-computed ambient class strings keyed by `${phase}-${intensity}-${stagger}`. */
 const AMBIENT_CLASS_STRINGS: Record<string, string> = {};
 for (const phase of ['calm', 'building', 'intense', 'final']) {
   for (let intensity = 0; intensity <= 4; intensity++) {
-    const key = `${phase}-${intensity}`;
-    AMBIENT_CLASS_STRINGS[key] = `${CSS_CLASSES.SQUARE} intensity-${intensity} ${CSS_CLASSES.AMBIENT} ${getPhaseClass(phase)}`;
+    for (let stagger = 0; stagger < STAGGER_BUCKET_COUNT; stagger++) {
+      const key = `${phase}-${intensity}-${stagger}`;
+      AMBIENT_CLASS_STRINGS[key] = `${CSS_CLASSES.SQUARE} intensity-${intensity} ${CSS_CLASSES.AMBIENT} ${getPhaseClass(phase)} stagger-${stagger}`;
+    }
   }
 }
 
@@ -152,9 +184,33 @@ export function getBaseClass(intensity: number): string {
   return BASE_CLASS_STRINGS[intensity] ?? BASE_CLASS_STRINGS[0];
 }
 
-/** Get pre-computed ambient class for intensity and phase. O(1), zero allocation. */
-export function getAmbientClass(intensity: number, phase: string): string {
-  return AMBIENT_CLASS_STRINGS[`${phase}-${intensity}`] ?? getBaseClass(intensity);
+/**
+ * Get pre-computed ambient class for intensity, phase, and stagger.
+ * O(1), zero allocation.
+ * 
+ * The stagger parameter adds a CSS animation-delay class (stagger-0 through stagger-4)
+ * to spread out animation start times within a batch. When omitted, a random stagger
+ * is selected, creating organic timing variation.
+ * 
+ * @param intensity - Color intensity (1-4) determines brightness and base animation duration
+ * @param phase - Activity phase name ('calm', 'building', 'intense', 'final')
+ * @param stagger - Stagger bucket (0-4) for animation delay. Defaults to random.
+ *   - 0: No delay (immediate start)
+ *   - 1-4: Increasing delays (8%, 16%, 24%, 32% of animation duration)
+ * @returns Pre-computed class string like "contribution-graph-square intensity-2 is-ambient phase-building stagger-3"
+ * 
+ * @example
+ * ```ts
+ * // Random stagger (default)
+ * getAmbientClass(2, 'building'); // → "...stagger-N" (N = random 0-4)
+ * 
+ * // Explicit stagger for testing
+ * getAmbientClass(3, 'intense', 0); // → "...stagger-0" (no delay)
+ * ```
+ */
+export function getAmbientClass(intensity: number, phase: string, stagger?: number): string {
+  const staggerIndex = stagger ?? Math.floor(Math.random() * STAGGER_BUCKET_COUNT);
+  return AMBIENT_CLASS_STRINGS[`${phase}-${intensity}-${staggerIndex}`] ?? getBaseClass(intensity);
 }
 
 // =============================================================================
@@ -177,11 +233,15 @@ export function getWeightedIntensity(): number {
 // =============================================================================
 
 export {
-type ActivityPhase,
-  type ActivityPhaseValues,
+  BATCH_OVERLAP_FRACTION,
   clearActivityStageCache,
   getActivityPhase,
   getActivityStageSnapshot,
+  getBatchLifetimeMs,
+  getOverlapTickIntervalMs,
   getPhaseConfig,
-  getPhaseConfigByName} from './activity-stages';
+  getPhaseConfigByName,
+  MAX_STAGGER_FRACTION, type ActivityPhase,
+  type ActivityPhaseValues
+} from './activity-stages';
 
