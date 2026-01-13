@@ -24,7 +24,9 @@ import {
   createSentinel,
   createThemeCard,
   destroyAllTooltips,
+  setupColorModeVideoListener,
   updateFavoriteButton,
+  updateVideosForColorMode,
 } from './card-builder';
 import {
   getCurrentFavorites,
@@ -195,6 +197,9 @@ export function createThemeSelector(
     filterThemes(state);
     applySorting();
     renderActiveTab();
+    
+    // Set up listener for color mode changes to update video previews
+    setupColorModeVideoListener();
 
     return root;
   }
@@ -482,7 +487,7 @@ export function createThemeSelector(
     return rootEl;
   }
 
-  /** Update theme card preview images based on current color mode. */
+  /** Update theme card preview images and videos based on current color mode. */
   function updateColorMode(): void {
     if (!rootEl) return;
 
@@ -502,6 +507,9 @@ export function createThemeSelector(
         }
       }
     });
+    
+    // Also update video sources for the new color mode
+    updateVideosForColorMode();
   }
 
   /** Destroy component and clean up resources. */

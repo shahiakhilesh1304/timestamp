@@ -52,12 +52,6 @@ describe('theme-previews', () => {
       expect(IMAGE_SIZES['card-2x'].width).toBe(IMAGE_SIZES['card-1x'].width * 2);
       expect(IMAGE_SIZES['card-2x'].height).toBe(IMAGE_SIZES['card-1x'].height * 2);
     });
-
-    it('should have readme size for documentation (1200x675)', () => {
-      expect(IMAGE_SIZES.readme.width).toBe(1200);
-      expect(IMAGE_SIZES.readme.height).toBe(675);
-      expect(IMAGE_SIZES.readme.width / IMAGE_SIZES.readme.height).toBeCloseTo(16 / 9);
-    });
   });
 
   describe('buildPreviewFilename', () => {
@@ -73,14 +67,6 @@ describe('theme-previews', () => {
       expect(result).toContain('fireworks');
       expect(result).toContain('images');
       expect(result).toContain('preview-light-card-2x.webp');
-    });
-
-    it('should build readme filename without card suffix in images subfolder', () => {
-      const result = buildPreviewFilename('/output', 'fireworks', 'light', 'readme');
-      expect(result).toContain('fireworks');
-      expect(result).toContain('images');
-      expect(result).toContain('preview-light.webp');
-      expect(result).not.toContain('-card');
     });
   });
 
@@ -142,10 +128,10 @@ describe('theme-previews', () => {
       expect(config.outputDir).toMatch(/.*\/src\/themes$/);
     });
 
-    it('should use 00:00 as completion message', () => {
+    it('should use timestamp as completion message', () => {
       const config = buildPreviewConfig();
 
-      expect(config.completionMessage).toBe('00:00');
+      expect(config.completionMessage).toBe('timestamp');
     });
   });
 
@@ -187,10 +173,10 @@ describe('theme-previews', () => {
 
     it.each([
       { args: ['--size=card'], expected: 'card' },
-      { args: ['--size=readme'], expected: 'readme' },
       { args: ['--size=both'], expected: 'both' },
       { args: ['--size', 'card'], expected: 'card' },
       { args: ['--size=invalid'], expected: 'both' },
+      { args: ['--size=readme'], expected: 'both' }, // readme is no longer valid, defaults to both
     ])('should parse size option for args $args', ({ args, expected }) => {
       const result = parsePreviewArgs(args);
       expect(result.size).toBe(expected);
@@ -376,16 +362,16 @@ describe('theme-previews', () => {
         outputDir: process.cwd() + '/src/themes',
         completionMessage: '00:00',
       };
-      const options: PreviewOptions = { force: false, colorMode: 'both', size: 'readme' };
+      const options: PreviewOptions = { force: false, colorMode: 'both', size: 'card' };
 
       const result = await generateThemePreview(mockPage, theme, config, options);
 
       expect(result).toBe('skipped');
       expect(consoleSpy).toHaveBeenCalledWith(
-        '  ⏭️  Fireworks (fireworks, dark, 1200x675) - already exists, skipping'
+        '  ⏭️  Fireworks (fireworks, dark, 426x240) - already exists, skipping'
       );
       expect(consoleSpy).toHaveBeenCalledWith(
-        '  ⏭️  Fireworks (fireworks, light, 1200x675) - already exists, skipping'
+        '  ⏭️  Fireworks (fireworks, light, 426x240) - already exists, skipping'
       );
       expect(mockPage.goto).not.toHaveBeenCalled();
 
