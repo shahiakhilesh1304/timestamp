@@ -229,6 +229,19 @@
   pointer-events: none;
 }
 
+/* Poster image element - shown behind the video as fallback */
+.theme-selector-card-poster-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  pointer-events: none;
+  /* Layer behind the video */
+  z-index: 0;
+}
+
 /* Video preview element for animated theme previews */
 .theme-selector-card-preview-video {
   position: absolute;
@@ -238,10 +251,19 @@
   object-fit: cover;
   object-position: center;
   pointer-events: none;
+  /* Layer above the poster image */
+  z-index: 1;
   /* GPU layer for smooth playback/transitions */
   will-change: opacity, transform;
-  /* Ensure poster image fills the space */
-  background-color: var(--color-surface);
+  /* CRITICAL: Hide video until actually playing to prevent browser loading spinner */
+  /* The poster image element behind ensures something is always visible */
+  opacity: 0%;
+  transition: opacity 0.15s ease-out;
+}
+
+/* Show video only when actually playing (after canplaythrough) */
+.theme-selector-card-preview-video--playing {
+  opacity: 100%;
 }
 
 /* Play icon overlay - visible when video is paused */

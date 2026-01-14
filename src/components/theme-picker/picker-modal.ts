@@ -99,6 +99,41 @@ export function createThemePickerModal(
     return overlayElement;
   }
 
+  /**
+   * Unlock Safari autoplay by priming video elements during user gesture.
+   * Safari requires video.play() to be called during a user gesture context.
+   * We do a quick play/pause on each video to "unlock" them for hover autoplay.
+   */
+  function unlockSafariAutoplay(): void {
+    const videos = document.querySelectorAll<HTMLVideoElement>('.theme-selector-card-preview-video');
+    for (const video of videos) {
+      // Ensure video is configured for autoplay
+      video.muted = true;
+      video.playsInline = true;
+      
+      // Set src if not already set (from dataset)
+      if (!video.src && video.dataset.src) {
+        video.src = video.dataset.src;
+      }
+      
+      // Brief play attempt to unlock - immediately pause
+      // Safari remembers this unlock even after pause
+      const playPromise = video.play();
+      
+      // Handle case where play() returns undefined (test environment)
+      if (playPromise && typeof playPromise.then === 'function') {
+        playPromise
+          .then(() => {
+            video.pause();
+            video.currentTime = 0;
+          })
+          .catch(() => {
+            // Autoplay blocked, user will need to click
+          });
+      }
+    }
+  }
+
   function open(): void {
     if (isOpen) return;
 
@@ -107,6 +142,10 @@ export function createThemePickerModal(
     document.body.style.overflow = 'hidden';
     document.dispatchEvent(new CustomEvent(THEME_MODAL_OPEN_EVENT));
     announceToScreenReaders(SCREEN_READER_OPEN_ANNOUNCEMENT);
+    
+    // Unlock Safari autoplay - must happen AFTER modal is in DOM
+    // and within user gesture context (we're still in the click handler)
+    unlockSafariAutoplay();
 
     const searchInput = modalElement?.querySelector('[data-testid="theme-search-input"]') as HTMLInputElement | null;
     

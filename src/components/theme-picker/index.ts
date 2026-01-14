@@ -10,46 +10,47 @@ import { getResolvedColorMode } from '@core/preferences/color-mode';
 import type { ThemeId } from '@core/types';
 import { createVisuallyHiddenElement } from '@core/utils/accessibility';
 import {
-  createRovingTabindex,
-  type RovingTabindexController,
+    createRovingTabindex,
+    type RovingTabindexController,
 } from '@core/utils/accessibility/roving-tabindex';
 import { getThemeDisplayName } from '@themes/registry';
 import { getPreviewUrls } from '@themes/registry/preview-map';
 
 import {
-  buildResultsCount,
-  buildSearchSection,
-  buildThemesContainer,
-  createContributeCard,
-  createSentinel,
-  createThemeCard,
-  destroyAllTooltips,
-  setupColorModeVideoListener,
-  updateFavoriteButton,
-  updateVideosForColorMode,
+    buildResultsCount,
+    buildSearchSection,
+    buildThemesContainer,
+    createContributeCard,
+    createSentinel,
+    createThemeCard,
+    destroyAllTooltips,
+    setupAutoplayUnlock,
+    setupColorModeVideoListener,
+    updateFavoriteButton,
+    updateVideosForColorMode,
 } from './card-builder';
 import {
-  getCurrentFavorites,
-  toggleThemeFavorite,
+    getCurrentFavorites,
+    toggleThemeFavorite,
 } from './favorites-manager';
 import {
-  createCardKeydownHandler,
-  createSearchKeydownHandler,
+    createCardKeydownHandler,
+    createSearchKeydownHandler,
 } from './keyboard-nav';
 import {
-  filterThemes,
-  getResultsCountText,
-  handleSearchInput,
+    filterThemes,
+    getResultsCountText,
+    handleSearchInput,
 } from './search-filter';
 import { buildSortDropdown } from './sort-dropdown';
 import { getDefaultSortConfig, sortThemes } from './sort-themes';
 import { buildTabList, buildTabPanel, type TabController, type TabPanelController } from './tabs';
 import type {
-  ThemeSelectorController,
-  ThemeSelectorOptions,
-  ThemeSelectorState,
-  ThemeSortConfig,
-  ThemeTab,
+    ThemeSelectorController,
+    ThemeSelectorOptions,
+    ThemeSelectorState,
+    ThemeSortConfig,
+    ThemeTab,
 } from './types';
 
 export type { ThemeSwitcherController as ThemePickerController, ThemeSwitcherOptions as ThemePickerOptions } from './picker-button';
@@ -200,6 +201,9 @@ export function createThemeSelector(
     
     // Set up listener for color mode changes to update video previews
     setupColorModeVideoListener();
+    
+    // Set up Safari autoplay unlock listener (Safari requires user gesture for video autoplay)
+    setupAutoplayUnlock();
 
     return root;
   }

@@ -2,6 +2,7 @@ export {
     createContributeCard,
     createThemeCard,
     destroyAllTooltips,
+    setupAutoplayUnlock,
     setupColorModeVideoListener,
     updateFavoriteButton,
     updateVideosForColorMode

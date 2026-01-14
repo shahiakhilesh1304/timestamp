@@ -5,9 +5,9 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  VideoPlaybackController,
-  isMobileViewport,
-  prefersReducedMotion
+    VideoPlaybackController,
+    isMobileViewport,
+    prefersReducedMotion
 } from './video-playback-controller';
 
 // =============================================================================
@@ -47,8 +47,20 @@ function createMockVideo(src = 'test-video.webm'): HTMLVideoElement {
   video.play = vi.fn().mockResolvedValue(undefined);
   video.pause = vi.fn();
   video.load = vi.fn();
+  
+  // Set readyState to HAVE_ENOUGH_DATA (4) so startActualPlayback doesn't wait for 'canplay'
+  Object.defineProperty(video, 'readyState', {
+    value: 4, // HTMLMediaElement.HAVE_ENOUGH_DATA
+    writable: true,
+  });
 
   return video;
+}
+
+// Helper to flush promises and advance timers (for async video operations)
+async function flushAsyncAndTimers(): Promise<void> {
+  await Promise.resolve(); // Flush microtask queue (play() promise)
+  vi.advanceTimersByTime(0); // Flush setTimeout(0) (compositor delay)
 }
 
 // Helper to setup default matchMedia mock
@@ -129,7 +141,9 @@ describe('VideoPlaybackController', () => {
   let controller: VideoPlaybackController;
 
   beforeEach(() => {
-    controller = new VideoPlaybackController();
+    controller = new VideoPlaybackController({
+      compositorPaintDelayMs: 0, // No delay in tests for immediate state transitions
+    });
   });
 
   afterEach(() => {
@@ -186,31 +200,43 @@ describe('VideoPlaybackController', () => {
   });
 
   describe('state machine transitions', () => {
-    it('should transition from idle to loading on play', () => {
+    it('should transition from idle to loading on play after debounce', () => {
       const video = createMockVideo();
       controller.attach(video, 'poster.webp');
 
       controller.handleMouseEnter(video);
+
+      // Should still be idle before debounce completes
+      expect(controller.getState(video)).toBe('idle');
+
+      // Advance past hover debounce (100ms)
+      vi.advanceTimersByTime(100);
 
       expect(controller.getState(video)).toBe('loading');
     });
 
-    it('should transition from loading to playing on canplay', () => {
+    it('should transition from loading to playing on canplaythrough', async () => {
       const video = createMockVideo();
       controller.attach(video, 'poster.webp');
 
       controller.handleMouseEnter(video);
-      video.dispatchEvent(new Event('canplay'));
+      vi.advanceTimersByTime(100); // Wait for hover debounce
+      video.dispatchEvent(new Event('canplaythrough'));
+
+      // Flush the play() promise and compositor delay
+      await flushAsyncAndTimers();
 
       expect(controller.getState(video)).toBe('playing');
     });
 
-    it('should reset to idle on mouse leave', () => {
+    it('should reset to idle on mouse leave', async () => {
       const video = createMockVideo();
       controller.attach(video, 'poster.webp');
 
       controller.handleMouseEnter(video);
-      video.dispatchEvent(new Event('canplay'));
+      vi.advanceTimersByTime(100); // Wait for hover debounce
+      video.dispatchEvent(new Event('canplaythrough'));
+      await Promise.resolve(); // Flush play() promise
       controller.handleMouseLeave(video);
 
       expect(controller.getState(video)).toBe('idle');
@@ -222,6 +248,7 @@ describe('VideoPlaybackController', () => {
       controller.attach(video, 'poster.webp');
 
       controller.handleMouseEnter(video);
+      vi.advanceTimersByTime(100); // Wait for hover debounce
       controller.handleMouseLeave(video);
 
       expect(video.currentTime).toBe(0);
@@ -239,8 +266,9 @@ describe('VideoPlaybackController', () => {
 
       videos.forEach((video) => controller.attach(video, 'poster.webp'));
 
-      // Start all videos
+      // Start all videos (hover debounce is 100ms)
       videos.forEach((video) => controller.handleMouseEnter(video));
+      vi.advanceTimersByTime(100); // Wait for hover debounce
 
       // Count active videos
       expect(controller.getActiveCount()).toBeLessThanOrEqual(maxVideos);
@@ -257,14 +285,15 @@ describe('VideoPlaybackController', () => {
 
       // Start video1
       controller.handleMouseEnter(video1);
-      vi.advanceTimersByTime(100);
+      vi.advanceTimersByTime(100); // Wait for hover debounce
 
       // Start video2
       controller.handleMouseEnter(video2);
-      vi.advanceTimersByTime(100);
+      vi.advanceTimersByTime(100); // Wait for hover debounce
 
       // Start video3 (should pause video1)
       controller.handleMouseEnter(video3);
+      vi.advanceTimersByTime(100); // Wait for hover debounce
 
       // video1 should be paused (it was oldest)
       expect(video1.pause).toHaveBeenCalled();
@@ -369,6 +398,7 @@ describe('VideoPlaybackController', () => {
 
       controller.handleMouseEnter(video1);
       controller.handleMouseEnter(video2);
+      vi.advanceTimersByTime(100); // Wait for hover debounce
 
       controller.pauseAll();
 
@@ -408,6 +438,7 @@ describe('VideoPlaybackController', () => {
       controller.attach(video, 'poster.webp');
 
       controller.handleMouseEnter(video);
+      vi.advanceTimersByTime(100); // Wait for hover debounce
 
       expect(controller.getActiveCount()).toBe(1);
     });
@@ -417,7 +448,8 @@ describe('VideoPlaybackController', () => {
       controller.attach(video, 'poster.webp');
 
       controller.handleMouseEnter(video);
-      video.dispatchEvent(new Event('canplay'));
+      vi.advanceTimersByTime(100); // Wait for hover debounce
+      video.dispatchEvent(new Event('canplaythrough'));
 
       expect(controller.getActiveCount()).toBe(1);
     });
@@ -449,16 +481,391 @@ describe('VideoPlaybackController', () => {
   });
 
   describe('video ended', () => {
-    it('should reset video when playback ends', () => {
+    it('should reset video when playback ends and not hovered', () => {
       const video = createMockVideo();
       controller.attach(video, 'poster.webp');
 
       controller.handleMouseEnter(video);
-      video.dispatchEvent(new Event('canplay'));
-      video.dispatchEvent(new Event('ended'));
+      vi.advanceTimersByTime(100); // Wait for hover debounce
+      video.dispatchEvent(new Event('canplaythrough'));
+      // Leave before video ends
+      controller.handleMouseLeave(video);
+      // Simulate ended with isHovered = false (already left)
+      // State is already idle, so ended does nothing different
 
       expect(controller.getState(video)).toBe('idle');
       expect(video.currentTime).toBe(0);
+    });
+  });
+
+  // =============================================================================
+  // Step 3.2: Tests for isHovered tracking
+  // =============================================================================
+
+  describe('isHovered tracking', () => {
+    it('should set isHovered on mouse enter', async () => {
+      const video = createMockVideo();
+      controller.attach(video, 'poster.webp');
+
+      controller.handleMouseEnter(video);
+
+      // Even before debounce, hover should trigger internal state tracking
+      // We verify this indirectly through the loop behavior
+      vi.advanceTimersByTime(100);
+      video.dispatchEvent(new Event('canplaythrough'));
+      await flushAsyncAndTimers();
+      video.dispatchEvent(new Event('ended'));
+
+      // If isHovered is true, video should loop (play called twice)
+      expect(video.play).toHaveBeenCalledTimes(2);
+    });
+
+    it('should clear isHovered on mouse leave', async () => {
+      const video = createMockVideo();
+      controller.attach(video, 'poster.webp');
+
+      controller.handleMouseEnter(video);
+      vi.advanceTimersByTime(100);
+      video.dispatchEvent(new Event('canplaythrough'));
+      await flushAsyncAndTimers();
+      
+      controller.handleMouseLeave(video);
+      
+      // After leave, ended should reset to idle (not loop)
+      video.dispatchEvent(new Event('ended'));
+      
+      // Only one play call (no loop because isHovered is false)
+      expect(video.play).toHaveBeenCalledTimes(1);
+    });
+
+    it('should persist isHovered across playback states', async () => {
+      const video = createMockVideo();
+      controller.attach(video, 'poster.webp');
+
+      controller.handleMouseEnter(video);
+      vi.advanceTimersByTime(100);
+      video.dispatchEvent(new Event('canplaythrough'));
+      await flushAsyncAndTimers();
+      
+      // isHovered should still be true even after state transitions
+      video.dispatchEvent(new Event('ended'));
+      
+      // Should loop since still hovered
+      expect(video.play).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  // =============================================================================
+  // Step 3.3: Tests for hover debounce (100ms rapid cycles)
+  // =============================================================================
+
+  describe('hover debounce', () => {
+    it('should debounce rapidly entering and leaving', () => {
+      const video = createMockVideo();
+      controller.attach(video, 'poster.webp');
+
+      // Rapid enter-leave cycle within 100ms
+      controller.handleMouseEnter(video);
+      vi.advanceTimersByTime(50);
+      controller.handleMouseLeave(video);
+      vi.advanceTimersByTime(50);
+
+      // Should not have triggered playback
+      expect(video.play).not.toHaveBeenCalled();
+      expect(controller.getState(video)).toBe('idle');
+    });
+
+    it('should honor final hover state after rapid cycles', () => {
+      const video = createMockVideo();
+      controller.attach(video, 'poster.webp');
+
+      // Rapid cycle: enter -> leave -> enter
+      controller.handleMouseEnter(video);
+      vi.advanceTimersByTime(30);
+      controller.handleMouseLeave(video);
+      vi.advanceTimersByTime(30);
+      controller.handleMouseEnter(video);
+      
+      // Wait for debounce to complete
+      vi.advanceTimersByTime(100);
+
+      // Final state was hovered, so should trigger playback
+      expect(controller.getState(video)).toBe('loading');
+    });
+
+    it('should cancel pending playback on mouse leave', () => {
+      const video = createMockVideo();
+      controller.attach(video, 'poster.webp');
+
+      controller.handleMouseEnter(video);
+      vi.advanceTimersByTime(80); // Almost complete debounce
+      controller.handleMouseLeave(video);
+      vi.advanceTimersByTime(50); // Past original debounce time
+
+      // Playback should not have been triggered
+      expect(video.play).not.toHaveBeenCalled();
+    });
+  });
+
+  // =============================================================================
+  // Step 3.4: Tests for loop behavior in handleEnded()
+  // =============================================================================
+
+  describe('loop behavior', () => {
+    it('should loop when ended while still hovered', async () => {
+      const video = createMockVideo();
+      controller.attach(video, 'poster.webp');
+
+      controller.handleMouseEnter(video);
+      vi.advanceTimersByTime(100);
+      video.dispatchEvent(new Event('canplaythrough'));
+      await flushAsyncAndTimers();
+      
+      // Simulate video ending while still hovered
+      video.dispatchEvent(new Event('ended'));
+
+      // Should restart from beginning
+      expect(video.currentTime).toBe(0);
+      expect(video.play).toHaveBeenCalledTimes(2); // Initial + loop
+    });
+
+    it('should reset to idle when ended after mouse leave', async () => {
+      const video = createMockVideo();
+      controller.attach(video, 'poster.webp');
+
+      controller.handleMouseEnter(video);
+      vi.advanceTimersByTime(100);
+      video.dispatchEvent(new Event('canplaythrough'));
+      await flushAsyncAndTimers();
+      
+      // Leave, then video ends
+      controller.handleMouseLeave(video);
+
+      // State should be idle after leave
+      expect(controller.getState(video)).toBe('idle');
+    });
+
+    it('should loop multiple times while continuously hovered', async () => {
+      const video = createMockVideo();
+      controller.attach(video, 'poster.webp');
+
+      controller.handleMouseEnter(video);
+      vi.advanceTimersByTime(100);
+      video.dispatchEvent(new Event('canplaythrough'));
+      await flushAsyncAndTimers();
+      
+      // Loop 3 times
+      video.dispatchEvent(new Event('ended'));
+      video.dispatchEvent(new Event('ended'));
+      video.dispatchEvent(new Event('ended'));
+
+      // Should have called play 4 times (initial + 3 loops)
+      expect(video.play).toHaveBeenCalledTimes(4);
+    });
+  });
+
+  // =============================================================================
+  // Step 3.5: Tests for 2s canplaythrough timeout fallback
+  // =============================================================================
+
+  describe('canplaythrough timeout fallback', () => {
+    it('should transition to playing after 2s timeout if canplaythrough never fires', async () => {
+      const video = createMockVideo();
+      controller.attach(video, 'poster.webp');
+
+      controller.handleMouseEnter(video);
+      vi.advanceTimersByTime(100); // Hover debounce
+      
+      // Don't dispatch canplaythrough, instead wait for timeout
+      vi.advanceTimersByTime(2000);
+      await flushAsyncAndTimers();
+
+      expect(controller.getState(video)).toBe('playing');
+    });
+
+    it('should clear timeout when canplaythrough fires', async () => {
+      const onStateChange = vi.fn();
+      const timeoutController = new VideoPlaybackController({
+        onStateChange,
+        compositorPaintDelayMs: 0,
+      });
+      const video = createMockVideo();
+      timeoutController.attach(video, 'poster.webp');
+
+      timeoutController.handleMouseEnter(video);
+      vi.advanceTimersByTime(100); // Hover debounce
+      
+      // Fire canplaythrough before timeout
+      video.dispatchEvent(new Event('canplaythrough'));
+      await flushAsyncAndTimers();
+      
+      // Clear callback history
+      onStateChange.mockClear();
+      
+      // Advance past timeout
+      vi.advanceTimersByTime(2000);
+      
+      // Should not fire another state change (timeout was cleared)
+      expect(onStateChange).not.toHaveBeenCalled();
+      
+      timeoutController.destroy();
+    });
+
+    it('should handle cached videos via timeout', async () => {
+      const video = createMockVideo();
+      controller.attach(video, 'poster.webp');
+
+      controller.handleMouseEnter(video);
+      vi.advanceTimersByTime(100); // Hover debounce
+      
+      expect(controller.getState(video)).toBe('loading');
+      
+      // Simulate cached video that never fires canplaythrough
+      vi.advanceTimersByTime(2000);
+      await flushAsyncAndTimers();
+      
+      expect(controller.getState(video)).toBe('playing');
+    });
+  });
+
+  // =============================================================================
+  // Step 3.6: Tests for onStateChange callback
+  // =============================================================================
+
+  describe('onStateChange callback', () => {
+    it('should call onStateChange when state transitions', async () => {
+      const onStateChange = vi.fn();
+      const callbackController = new VideoPlaybackController({
+        onStateChange,
+        compositorPaintDelayMs: 0,
+      });
+      const video = createMockVideo();
+      callbackController.attach(video, 'poster.webp');
+
+      callbackController.handleMouseEnter(video);
+      vi.advanceTimersByTime(100);
+
+      expect(onStateChange).toHaveBeenCalledWith(video, 'loading');
+
+      callbackController.destroy();
+    });
+
+    it('should call onStateChange for loading → playing transition', async () => {
+      const onStateChange = vi.fn();
+      const callbackController = new VideoPlaybackController({
+        onStateChange,
+        compositorPaintDelayMs: 0,
+      });
+      const video = createMockVideo();
+      callbackController.attach(video, 'poster.webp');
+
+      callbackController.handleMouseEnter(video);
+      vi.advanceTimersByTime(100);
+      video.dispatchEvent(new Event('canplaythrough'));
+      await flushAsyncAndTimers();
+
+      expect(onStateChange).toHaveBeenCalledWith(video, 'playing');
+
+      callbackController.destroy();
+    });
+
+    it('should call onStateChange for playing → idle transition on leave', () => {
+      const onStateChange = vi.fn();
+      const callbackController = new VideoPlaybackController({
+        onStateChange,
+      });
+      const video = createMockVideo();
+      callbackController.attach(video, 'poster.webp');
+
+      callbackController.handleMouseEnter(video);
+      vi.advanceTimersByTime(100);
+      video.dispatchEvent(new Event('canplaythrough'));
+      
+      onStateChange.mockClear();
+      callbackController.handleMouseLeave(video);
+
+      expect(onStateChange).toHaveBeenCalledWith(video, 'idle');
+
+      callbackController.destroy();
+    });
+
+    it('should receive full state flow: idle → loading → playing → idle', async () => {
+      const states: string[] = [];
+      const callbackController = new VideoPlaybackController({
+        onStateChange: (_video, state) => states.push(state),
+        compositorPaintDelayMs: 0,
+      });
+      const video = createMockVideo();
+      callbackController.attach(video, 'poster.webp');
+
+      callbackController.handleMouseEnter(video);
+      vi.advanceTimersByTime(100);
+      video.dispatchEvent(new Event('canplaythrough'));
+      await flushAsyncAndTimers();
+      callbackController.handleMouseLeave(video);
+
+      expect(states).toEqual(['loading', 'playing', 'idle']);
+
+      callbackController.destroy();
+    });
+  });
+
+  // =============================================================================
+  // Step 3.7: Integration test for full playback flow
+  // =============================================================================
+
+  describe('full playback flow integration', () => {
+    it('should handle hover → canplaythrough → loop → leave → reset flow', async () => {
+      const states: string[] = [];
+      const flowController = new VideoPlaybackController({
+        onStateChange: (_video, state) => states.push(state),
+        compositorPaintDelayMs: 0,
+      });
+      const video = createMockVideo();
+      flowController.attach(video, 'poster.webp');
+
+      // 1. Hover
+      flowController.handleMouseEnter(video);
+      vi.advanceTimersByTime(100);
+      expect(states).toContain('loading');
+
+      // 2. canplaythrough fires
+      video.dispatchEvent(new Event('canplaythrough'));
+      await flushAsyncAndTimers();
+      expect(states).toContain('playing');
+
+      // 3. Video ends while still hovered → should loop
+      video.dispatchEvent(new Event('ended'));
+      expect(video.play).toHaveBeenCalledTimes(2);
+
+      // 4. Leave
+      flowController.handleMouseLeave(video);
+      expect(states).toContain('idle');
+      expect(video.pause).toHaveBeenCalled();
+      expect(video.currentTime).toBe(0);
+
+      flowController.destroy();
+    });
+
+    it('should handle rapid hover cycles without breaking state', () => {
+      const video = createMockVideo();
+      controller.attach(video, 'poster.webp');
+
+      // Rapid cycles
+      for (let i = 0; i < 5; i++) {
+        controller.handleMouseEnter(video);
+        vi.advanceTimersByTime(30);
+        controller.handleMouseLeave(video);
+        vi.advanceTimersByTime(30);
+      }
+
+      // Final state should be idle and clean
+      expect(controller.getState(video)).toBe('idle');
+      
+      // Now do a proper hover
+      controller.handleMouseEnter(video);
+      vi.advanceTimersByTime(100);
+      expect(controller.getState(video)).toBe('loading');
     });
   });
 });

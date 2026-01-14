@@ -5,27 +5,27 @@
 
 import { expect, test } from '@playwright/test';
 import {
-  DESKTOP_VIEWPORT,
-  FIREWORKS_TEST_URL,
-  MOBILE_VIEWPORT,
-  SMALL_MOBILE_VIEWPORT,
-  TABLET_VIEWPORT,
-  TEST_URL,
-  TIMER_TEST_URL,
+    DESKTOP_VIEWPORT,
+    FIREWORKS_TEST_URL,
+    MOBILE_VIEWPORT,
+    SMALL_MOBILE_VIEWPORT,
+    TABLET_VIEWPORT,
+    TEST_URL,
+    TIMER_TEST_URL,
 } from './fixtures/mobile-constants';
-import { THEME_FIXTURES } from './fixtures/theme-fixtures';
 import {
-  assertDropdownNavigationStaysVisible,
-  closeHamburgerOverlay,
-  expectNoHorizontalOverflow,
-  getLastCopiedText,
-  gotoWithViewport,
-  mockClipboard,
-  openHamburgerOverlay,
-  waitForCountdown,
-  waitForMobileMenuButton,
-  expectAlignedRows,
+    assertDropdownNavigationStaysVisible,
+    closeHamburgerOverlay,
+    expectAlignedRows,
+    expectNoHorizontalOverflow,
+    getLastCopiedText,
+    gotoWithViewport,
+    mockClipboard,
+    openHamburgerOverlay,
+    waitForCountdown,
+    waitForMobileMenuButton,
 } from './fixtures/test-utils';
+import { THEME_FIXTURES } from './fixtures/theme-fixtures';
 
 const WALL_CLOCK_QUERY = '/?mode=wall-clock&target=2099-01-01T00:00:00';
 
@@ -37,7 +37,7 @@ test.describe('Hamburger visibility by viewport', () => {
   const cases = [
     { name: 'mobile', viewport: MOBILE_VIEWPORT, expectVisible: true },
     { name: 'small mobile', viewport: SMALL_MOBILE_VIEWPORT, expectVisible: true },
-    { name: 'tablet', viewport: TABLET_VIEWPORT, expectVisible: false },
+    { name: 'tablet', viewport: TABLET_VIEWPORT, expectVisible: true }, // 768px ≤ 1050px mobile breakpoint
     { name: 'desktop', viewport: DESKTOP_VIEWPORT, expectVisible: false },
   ];
 

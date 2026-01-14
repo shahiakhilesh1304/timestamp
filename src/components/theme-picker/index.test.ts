@@ -158,6 +158,7 @@ vi.mock('./card-builder', () => {
   
   const setupColorModeVideoListener = vi.fn();
   const updateVideosForColorMode = vi.fn();
+  const setupAutoplayUnlock = vi.fn();
 
   return {
     createThemeCard,
@@ -170,6 +171,7 @@ vi.mock('./card-builder', () => {
     destroyAllTooltips,
     setupColorModeVideoListener,
     updateVideosForColorMode,
+    setupAutoplayUnlock,
   };
 });
 

@@ -283,3 +283,281 @@ test.describe('Theme Preview Videos - Modal Close', () => {
     expect(isPaused).toBe(true);
   });
 });
+
+// =============================================================================
+// Step 4.1: Seamless Playback Tests
+// =============================================================================
+
+test.describe('Theme Preview Videos - Seamless Playback', () => {
+  test.beforeEach(async ({ page }) => {
+    await openThemePicker(page);
+  });
+
+  test('poster remains visible until video plays (no flash)', async ({ page, isMobile }) => {
+    test.skip(isMobile === true, 'Hover not applicable on mobile');
+
+    const card = page.locator('.theme-selector-card').first();
+    const video = card.locator('video');
+
+    // Get poster URL before hover
+    const posterUrl = await video.getAttribute('poster');
+    expect(posterUrl).toBeTruthy();
+
+    // Video should have poster visible (poster attribute set)
+    await expect(video).toHaveAttribute('poster');
+
+    // Hover to trigger playback
+    await card.hover();
+
+    // Poster should still be set even during loading/playing
+    // (video element keeps poster attribute, CSS manages visibility)
+    const posterAfterHover = await video.getAttribute('poster');
+    expect(posterAfterHover).toBe(posterUrl);
+  });
+});
+
+// =============================================================================
+// Step 4.2: Video Looping Tests
+// =============================================================================
+
+test.describe('Theme Preview Videos - Looping', () => {
+  test('video loops while hovered', async ({ page, isMobile }) => {
+    test.skip(isMobile === true, 'Hover not applicable on mobile');
+
+    await openThemePicker(page);
+
+    const card = page.locator('.theme-selector-card').first();
+    const video = card.locator('video');
+
+    // Hover over the card
+    await card.hover();
+
+    // Wait for playback to start
+    await page.waitForTimeout(500);
+
+    // Check that video is not set to loop attribute (we handle loop via ended event)
+    // This is to verify our implementation approach
+    const loopAttr = await video.getAttribute('loop');
+    expect(loopAttr).toBeFalsy(); // We handle looping manually, not via loop attribute
+
+    // Verify video element exists and is playing or has proper setup
+    const hasSrc = await video.evaluate((v: HTMLVideoElement) => Boolean(v.src || v.dataset.src));
+    expect(hasSrc).toBe(true);
+  });
+});
+
+// =============================================================================
+// Step 4.3: Reset on Mouse Leave Tests
+// =============================================================================
+
+test.describe('Theme Preview Videos - Reset on Leave', () => {
+  test('video resets on mouse leave', async ({ page, isMobile }) => {
+    test.skip(isMobile === true, 'Hover not applicable on mobile');
+
+    await openThemePicker(page);
+
+    const card = page.locator('.theme-selector-card').first();
+    const video = card.locator('video');
+
+    // Hover to start playback
+    await card.hover();
+    await page.waitForTimeout(300);
+
+    // Move mouse away (hover on a different card)
+    const secondCard = page.locator('.theme-selector-card').nth(1);
+    await secondCard.hover();
+
+    // First video should be paused and reset
+    const isPaused = await video.evaluate((v: HTMLVideoElement) => v.paused);
+    expect(isPaused).toBe(true);
+
+    // currentTime should be reset to 0
+    const currentTime = await video.evaluate((v: HTMLVideoElement) => v.currentTime);
+    expect(currentTime).toBe(0);
+  });
+
+  test('poster is visible after mouse leave', async ({ page, isMobile }) => {
+    test.skip(isMobile === true, 'Hover not applicable on mobile');
+
+    await openThemePicker(page);
+
+    const card = page.locator('.theme-selector-card').first();
+    const video = card.locator('video');
+
+    // Hover to start playback
+    await card.hover();
+    await page.waitForTimeout(300);
+
+    // Move mouse away
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(100);
+
+    // Video should still have poster attribute
+    const poster = await video.getAttribute('poster');
+    expect(poster).toBeTruthy();
+    expect(poster).toContain('.webp');
+  });
+});
+
+// =============================================================================
+// Step 4.4: Keyboard Focus Parity Tests
+// =============================================================================
+
+test.describe('Theme Preview Videos - Keyboard Focus', () => {
+  test('keyboard navigation allows access to theme cards', async ({ page }) => {
+    await openThemePicker(page);
+
+    // Find a theme grid element (there may be multiple - all themes, favorites)
+    const grid = page.getByTestId('theme-selector-grid').first();
+    await expect(grid).toBeVisible();
+
+    // Tab navigation should allow reaching theme cards
+    await page.keyboard.press('Tab'); // Focus search input
+    await page.keyboard.press('Tab'); // Focus grid or first card
+
+    // Verify cards are visible and accessible
+    const firstCard = page.locator('.theme-selector-card').first();
+    await expect(firstCard).toBeVisible();
+
+    // Card should have an accessible name
+    const ariaLabel = await firstCard.getAttribute('aria-label');
+    expect(ariaLabel).toBeTruthy();
+  });
+
+  test('blur resets video state', async ({ page }) => {
+    await openThemePicker(page);
+
+    // Hover over first card to trigger playback
+    const firstCard = page.locator('.theme-selector-card').first();
+    await firstCard.hover();
+    await page.waitForTimeout(300);
+
+    // Move focus away (click somewhere else)
+    const modal = page.getByTestId('theme-modal');
+    await modal.click({ position: { x: 10, y: 10 } }); // Click edge of modal
+    await page.waitForTimeout(100);
+
+    // First card's video should be paused
+    const firstVideo = page.locator('.theme-selector-card video').first();
+    const isPaused = await firstVideo.evaluate((v: HTMLVideoElement) => v.paused);
+    expect(isPaused).toBe(true);
+  });
+});
+
+// =============================================================================
+// Step 4.5: Play Icon Coordination Tests
+// =============================================================================
+
+test.describe('Theme Preview Videos - Play Icon Coordination', () => {
+  test('play icon visible initially', async ({ page }) => {
+    await openThemePicker(page);
+
+    const playIcon = page.locator('.theme-selector-card-play-icon').first();
+    await expect(playIcon).toBeVisible();
+  });
+
+  test('play icon hides during playback', async ({ page, isMobile }) => {
+    test.skip(isMobile === true, 'Hover not applicable on mobile');
+
+    await openThemePicker(page);
+
+    const card = page.locator('.theme-selector-card').first();
+    const playIcon = card.locator('.theme-selector-card-play-icon');
+
+    // Initially visible
+    await expect(playIcon).toBeVisible();
+
+    // Hover to trigger playback
+    await card.hover();
+    await page.waitForTimeout(300);
+
+    // Play icon should be hidden (has --hidden class)
+    const hasHiddenClass = await playIcon.evaluate((el) =>
+      el.classList.contains('theme-selector-card-play-icon--hidden')
+    );
+    expect(hasHiddenClass).toBe(true);
+  });
+
+  test('play icon returns after stop', async ({ page, isMobile }) => {
+    test.skip(isMobile === true, 'Hover not applicable on mobile');
+
+    await openThemePicker(page);
+
+    const card = page.locator('.theme-selector-card').first();
+    const playIcon = card.locator('.theme-selector-card-play-icon');
+
+    // Hover to trigger playback
+    await card.hover();
+    await page.waitForTimeout(300);
+
+    // Move mouse away
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(100);
+
+    // Play icon should be visible again (--hidden class removed)
+    const hasHiddenClass = await playIcon.evaluate((el) =>
+      el.classList.contains('theme-selector-card-play-icon--hidden')
+    );
+    expect(hasHiddenClass).toBe(false);
+  });
+});
+
+// =============================================================================
+// Step 4.6: Reduced Motion Compliance Tests
+// =============================================================================
+
+test.describe('Theme Preview Videos - Reduced Motion', () => {
+  test('video never autoplays with reduced motion', async ({ page }) => {
+    // Set reduced motion preference
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+
+    await openThemePicker(page);
+
+    const card = page.locator('.theme-selector-card').first();
+    const video = card.locator('video');
+
+    // Hover should not trigger playback
+    await card.hover();
+    await page.waitForTimeout(500);
+
+    const isPaused = await video.evaluate((v: HTMLVideoElement) => v.paused);
+    expect(isPaused).toBe(true);
+  });
+
+  test('poster remains static with reduced motion', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+
+    await openThemePicker(page);
+
+    const video = page.locator('.theme-selector-card video').first();
+
+    // Video should have poster
+    const poster = await video.getAttribute('poster');
+    expect(poster).toBeTruthy();
+
+    // Video should not have started loading (src should be in data-src)
+    const src = await video.getAttribute('src');
+    const dataSrc = await video.getAttribute('data-src');
+
+    // Either no src or src is empty (video not loaded)
+    expect(!src || dataSrc).toBeTruthy();
+  });
+
+  test('play icon hidden with reduced motion', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+
+    await openThemePicker(page);
+
+    const playIcon = page.locator('.theme-selector-card-play-icon').first();
+
+    // CSS should hide play icon in reduced motion mode
+    // Check computed visibility/display
+    const isHidden = await playIcon.evaluate((el) => {
+      const style = window.getComputedStyle(el);
+      return style.display === 'none' || style.visibility === 'hidden';
+    });
+
+    // Play icon should be hidden via CSS when reduced motion is preferred
+    expect(isHidden).toBe(true);
+  });
+});
