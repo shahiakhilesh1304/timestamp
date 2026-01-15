@@ -32,8 +32,6 @@ function calculateShadowInfo(params: {
   date: Date;
 }): ShadowInfo {
   const { heightMeters, latitude, longitude, date } = params;
-  // SunCalc.getPosition returns { altitude, azimuth } in radians.
-  // altitude: angle from horizon (-π/2 to π/2), azimuth: from south, clockwise (-π to π)
   const sunPos = SunCalc.getPosition(date, latitude, longitude);
   
   // Convert from radians to degrees
