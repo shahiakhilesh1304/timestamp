@@ -4,9 +4,8 @@
  * Calculates and applies dynamic shadows to countdown display based on celestial body position.
  */
 
+import { SHADOW_CONFIG } from '../../config/index';
 import type { CelestialBody, ThemeElements } from './ui-builder';
-
-import { SHADOW_CONFIG } from '../../config';
 
 /**
  * Calculate shadow properties based on light source position.

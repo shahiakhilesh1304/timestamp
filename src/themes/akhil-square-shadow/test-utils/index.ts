@@ -2,8 +2,6 @@
  * Test helpers for akhil-square-shadow theme tests.
  */
 
-
-
 import type { LandingPageRenderer } from '@themes/shared/types';
 
 import { createTestContainer, removeTestContainer } from '@/test-utils/theme-test-helpers';

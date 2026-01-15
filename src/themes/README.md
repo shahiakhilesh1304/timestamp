@@ -20,7 +20,6 @@ See [THEME_DEVELOPMENT.md](../../docs/THEME_DEVELOPMENT.md) for complete guideli
 
 ## Available Themes
 
-
 | Preview | Name | Description | World Map | Author | Try It |
 |---------|------|-------------|-----------|--------|--------|
 | <img src="akhil-square-shadow/images/preview-dark-card-1x.webp#gh-dark-mode-only" alt="Sun/Moon Shadow Rotator preview" width="160"><img src="akhil-square-shadow/images/preview-light-card-1x.webp#gh-light-mode-only" alt="Sun/Moon Shadow Rotator preview" width="160"> | **Sun/Moon Shadow Rotator** | Countdown with sun/moon casting rotating shadows on digits | ❌ | [@shahiakhilesh1304](https://github.com/shahiakhilesh1304) | [🏠](https://chrisreddington.com/timestamp?mode=wall-clock&target=2027-01-01T00:00:00&theme=akhil-square-shadow) [🌐](https://chrisreddington.com/timestamp?mode=absolute&target=2026-07-16T00:00:00Z&theme=akhil-square-shadow&message=Launch%20Day!) [⏱️](https://chrisreddington.com/timestamp?mode=timer&duration=300&theme=akhil-square-shadow) |

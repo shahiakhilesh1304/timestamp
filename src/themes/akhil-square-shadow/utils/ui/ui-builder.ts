@@ -140,10 +140,10 @@ export function buildThemeDOM(container: HTMLElement): ThemeElements {
 export { updateCountdown };
 
 // Celestial positions
-export { calculateArcPosition, updateMoonPosition,updateSunPosition };
+export { calculateArcPosition, updateMoonPosition, updateSunPosition };
 
 // Shadow effects
-export { applyShadow,calculateShadow };
+export { applyShadow, calculateShadow };
 
 // State management
 export { setDayNightMode, showCelebration, showCountdown };
