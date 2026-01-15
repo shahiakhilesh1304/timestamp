@@ -10,50 +10,53 @@ import { getResolvedColorMode } from '@core/preferences/color-mode';
 import type { ThemeId } from '@core/types';
 import { createVisuallyHiddenElement } from '@core/utils/accessibility';
 import {
-  createRovingTabindex,
-  type RovingTabindexController,
+    createRovingTabindex,
+    type RovingTabindexController,
 } from '@core/utils/accessibility/roving-tabindex';
 import { getThemeDisplayName } from '@themes/registry';
 import { getPreviewUrls } from '@themes/registry/preview-map';
 
 import {
-  buildResultsCount,
-  buildSearchSection,
-  buildThemesContainer,
-  createContributeCard,
-  createSentinel,
-  createThemeCard,
-  destroyAllTooltips,
-  updateFavoriteButton,
+    buildResultsCount,
+    buildSearchSection,
+    buildThemesContainer,
+    createContributeCard,
+    createSentinel,
+    createThemeCard,
+    destroyAllTooltips,
+    setupAutoplayUnlock,
+    setupColorModeVideoListener,
+    updateFavoriteButton,
+    updateVideosForColorMode,
 } from './card-builder';
 import {
-  getCurrentFavorites,
-  toggleThemeFavorite,
+    getCurrentFavorites,
+    toggleThemeFavorite,
 } from './favorites-manager';
 import {
-  createCardKeydownHandler,
-  createSearchKeydownHandler,
+    createCardKeydownHandler,
+    createSearchKeydownHandler,
 } from './keyboard-nav';
 import {
-  filterThemes,
-  getResultsCountText,
-  handleSearchInput,
+    filterThemes,
+    getResultsCountText,
+    handleSearchInput,
 } from './search-filter';
 import { buildSortDropdown } from './sort-dropdown';
 import { getDefaultSortConfig, sortThemes } from './sort-themes';
 import { buildTabList, buildTabPanel, type TabController, type TabPanelController } from './tabs';
 import type {
-  ThemeSelectorController,
-  ThemeSelectorOptions,
-  ThemeSelectorState,
-  ThemeSortConfig,
-  ThemeTab,
+    ThemeSelectorController,
+    ThemeSelectorOptions,
+    ThemeSelectorState,
+    ThemeSortConfig,
+    ThemeTab,
 } from './types';
 
-export type { ThemeSwitcherController as ThemePickerController,ThemeSwitcherOptions as ThemePickerOptions } from './picker-button';
+export type { ThemeSwitcherController as ThemePickerController, ThemeSwitcherOptions as ThemePickerOptions } from './picker-button';
 export { createThemePicker } from './picker-button';
-export type { ModalController,ThemeSwitcherModalOptions as ThemePickerModalOptions } from './picker-modal';
-export type { ThemeSelectorController,ThemeSelectorOptions } from './types';
+export type { ModalController, ThemeSwitcherModalOptions as ThemePickerModalOptions } from './picker-modal';
+export type { ThemeSelectorController, ThemeSelectorOptions } from './types';
 
 /** Number of cards to render immediately */
 const INITIAL_RENDER_COUNT = 12;
@@ -195,6 +198,12 @@ export function createThemeSelector(
     filterThemes(state);
     applySorting();
     renderActiveTab();
+    
+    // Set up listener for color mode changes to update video previews
+    setupColorModeVideoListener();
+    
+    // Set up Safari autoplay unlock listener (Safari requires user gesture for video autoplay)
+    setupAutoplayUnlock();
 
     return root;
   }
@@ -482,7 +491,7 @@ export function createThemeSelector(
     return rootEl;
   }
 
-  /** Update theme card preview images based on current color mode. */
+  /** Update theme card preview images and videos based on current color mode. */
   function updateColorMode(): void {
     if (!rootEl) return;
 
@@ -502,6 +511,9 @@ export function createThemeSelector(
         }
       }
     });
+    
+    // Also update video sources for the new color mode
+    updateVideosForColorMode();
   }
 
   /** Destroy component and clean up resources. */

@@ -1,19 +1,206 @@
-import { getResolvedColorMode } from '@core/preferences/color-mode';
+import { getResolvedColorMode, subscribeToSystemMode } from '@core/preferences/color-mode';
 import type { ThemeId } from '@core/types';
 import { cloneTemplate, getIconSvg } from '@core/utils/dom';
 import {
-  getThemeAuthor,
-  getThemeDependencies,
-  getThemeDisplayName,
-  isNewTheme,
+    getThemeAuthor,
+    getThemeDependencies,
+    getThemeDisplayName,
+    isNewTheme,
 } from '@themes/registry';
-import { getPreviewUrls } from '@themes/registry/preview-map';
+import { getPreviewUrls, getVideoUrls } from '@themes/registry/preview-map';
 
+import { COLOR_MODE_CHANGE_EVENT } from '@/components/color-mode-toggle';
 import { createTooltip, type TooltipController } from '@/components/tooltip';
 
 import { getFavoriteHeartSVG, isThemeFavorite } from './favorites-manager';
+import {
+    type PlaybackState,
+    prefersReducedMotion,
+    VideoPlaybackController,
+} from './video-playback-controller';
 
 const tooltipControllers = new Map<string, TooltipController>();
+
+/** Global video playback controller instance */
+let videoController: VideoPlaybackController | null = null;
+
+/** Cleanup function for color mode change listener */
+let colorModeCleanup: (() => void) | null = null;
+
+/** Cleanup function for Safari autoplay unlock listener */
+let autoplayUnlockCleanup: (() => void) | null = null;
+
+/** Whether Safari autoplay has been unlocked by user gesture */
+let isAutoplayUnlocked = false;
+
+/**
+ * Handle playback state changes to coordinate play icon visibility.
+ * Called by the VideoPlaybackController when video state changes.
+ *
+ * @param video - The video element whose state changed
+ * @param state - The new playback state
+ */
+function handlePlaybackStateChange(video: HTMLVideoElement, state: PlaybackState): void {
+  // Find the play icon overlay relative to the video element
+  const playIconOverlay = video.parentElement?.querySelector('.theme-selector-card-play-icon');
+  if (!playIconOverlay) return;
+
+  // Hide play icon only when video is actually playing (not during loading)
+  // Also add a class to the video to make it visible only when playing
+  // This prevents the browser's loading spinner from being visible
+  if (state === 'playing') {
+    playIconOverlay.classList.add('theme-selector-card-play-icon--hidden');
+    video.classList.add('theme-selector-card-preview-video--playing');
+  } else {
+    playIconOverlay.classList.remove('theme-selector-card-play-icon--hidden');
+    video.classList.remove('theme-selector-card-preview-video--playing');
+  }
+}
+
+/**
+ * Get or create the global video playback controller.
+ * @returns VideoPlaybackController instance
+ */
+export function getVideoController(): VideoPlaybackController {
+  if (!videoController) {
+    videoController = new VideoPlaybackController({
+      onStateChange: handlePlaybackStateChange,
+    });
+  }
+  return videoController;
+}
+
+/**
+ * Destroy the global video controller.
+ * Called when theme picker is closed.
+ */
+export function destroyVideoController(): void {
+  if (videoController) {
+    videoController.destroy();
+    videoController = null;
+  }
+  if (colorModeCleanup) {
+    colorModeCleanup();
+    colorModeCleanup = null;
+  }
+  if (autoplayUnlockCleanup) {
+    autoplayUnlockCleanup();
+    autoplayUnlockCleanup = null;
+  }
+  // Reset autoplay unlock state when modal closes
+  isAutoplayUnlocked = false;
+}
+
+/**
+ * Check if autoplay has been unlocked by user interaction.
+ * Safari requires a user gesture before allowing video.play().
+ * @returns true if autoplay is unlocked
+ */
+export function checkAutoplayUnlocked(): boolean {
+  return isAutoplayUnlocked;
+}
+
+/**
+ * Set up Safari autoplay unlock listener.
+ * Safari requires a user gesture (click/touch) before allowing video autoplay.
+ * This sets up a one-time listener that unlocks autoplay on first interaction.
+ */
+export function setupAutoplayUnlock(): void {
+  if (autoplayUnlockCleanup || isAutoplayUnlocked) return; // Already set up or unlocked
+
+  const unlockAutoplay = (): void => {
+    isAutoplayUnlocked = true;
+    
+    // Retry playing any videos that were blocked by Safari's autoplay policy
+    const blockedVideos = document.querySelectorAll<HTMLVideoElement>(
+      '.theme-selector-card-preview-video[data-autoplay-blocked="true"]'
+    );
+    for (const video of blockedVideos) {
+      video.removeAttribute('data-autoplay-blocked');
+      // Only retry if video is still being hovered
+      const card = video.closest('.theme-selector-card');
+      if (card?.matches(':hover')) {
+        video.play().catch(() => {
+          // Still blocked, give up
+        });
+      }
+    }
+    
+    // Clean up listeners after unlock
+    document.removeEventListener('click', unlockAutoplay, true);
+    document.removeEventListener('touchstart', unlockAutoplay, true);
+    autoplayUnlockCleanup = null;
+  };
+
+  // Use capture phase to catch clicks before they're handled
+  document.addEventListener('click', unlockAutoplay, true);
+  document.addEventListener('touchstart', unlockAutoplay, true);
+
+  autoplayUnlockCleanup = () => {
+    document.removeEventListener('click', unlockAutoplay, true);
+    document.removeEventListener('touchstart', unlockAutoplay, true);
+  };
+}
+
+/**
+ * Update all theme preview videos and poster images to match the current color mode.
+ * Called when user toggles between light/dark mode.
+ */
+export function updateVideosForColorMode(): void {
+  const colorMode = getResolvedColorMode();
+  const cards = document.querySelectorAll<HTMLElement>('[data-theme-id]');
+  
+  for (const card of cards) {
+    const themeId = card.getAttribute('data-theme-id');
+    if (!themeId) continue;
+    
+    const { url1x } = getPreviewUrls(themeId, colorMode);
+    const { webm: videoUrl } = getVideoUrls(themeId, colorMode);
+    
+    // Update poster image element
+    const posterImg = card.querySelector<HTMLImageElement>('.theme-selector-card-poster-img');
+    if (posterImg) {
+      posterImg.src = url1x;
+    }
+    
+    // Update video element
+    const video = card.querySelector<HTMLVideoElement>('.theme-selector-card-preview-video');
+    if (video) {
+      video.poster = url1x;
+      video.dataset.poster = url1x;
+      video.dataset.src = videoUrl;
+      
+      // If video is currently loaded, update src too
+      if (video.src && video.src !== '') {
+        video.src = videoUrl;
+      }
+    }
+  }
+}
+
+/**
+ * Set up listener for color mode changes to update video previews.
+ * Listens for both user toggle changes AND system preference changes.
+ * Should be called once when theme picker modal opens.
+ */
+export function setupColorModeVideoListener(): void {
+  if (colorModeCleanup) return; // Already set up
+  
+  const handler = () => {
+    updateVideosForColorMode();
+  };
+  
+  // Listen for user toggle changes
+  document.addEventListener(COLOR_MODE_CHANGE_EVENT, handler);
+  
+  // Listen for system color mode changes (e.g., OS switches light/dark)
+  const systemCleanup = subscribeToSystemMode(handler);
+  
+  colorModeCleanup = () => {
+    document.removeEventListener(COLOR_MODE_CHANGE_EVENT, handler);
+    systemCleanup();
+  };
+}
 
 /** Destroy all tracked tooltips. Call when theme selector is destroyed. */
 export function destroyAllTooltips(): void {
@@ -21,6 +208,11 @@ export function destroyAllTooltips(): void {
     controller.destroy();
   }
   tooltipControllers.clear();
+}
+
+/** Pause all playing videos. Call when theme picker modal closes. */
+export function pauseAllVideos(): void {
+  videoController?.pauseAll();
 }
 
 /**
@@ -81,7 +273,10 @@ export function createThemeCard(
   row.setAttribute('data-testid', `theme-card-${themeId}`);
 
   const colorMode = getResolvedColorMode();
-  const { url1x, url2x } = getPreviewUrls(themeId, colorMode);
+  const { url1x } = getPreviewUrls(themeId, colorMode);
+  const { webm: videoUrl } = getVideoUrls(themeId, colorMode);
+  const themeName = getThemeDisplayName(themeId);
+  
   const selectCell = document.createElement('div');
   selectCell.className = isSelected
     ? 'theme-selector-card theme-selector-card--selected'
@@ -89,26 +284,81 @@ export function createThemeCard(
   selectCell.setAttribute('role', 'gridcell');
   selectCell.setAttribute('aria-selected', isSelected ? 'true' : 'false');
   selectCell.setAttribute('tabindex', '-1');
-  const previewImg = document.createElement('img');
-  previewImg.src = url1x;
-  previewImg.srcset = `${url1x} 426w, ${url2x} 852w`;
-  // Responsive sizes: full width on mobile (≤768px), 426px max on larger screens
-  // This ensures browser selects 1x image (426w) on standard displays
-  previewImg.sizes = '(max-width: 768px) 100vw, 426px';
-  previewImg.alt = '';
-  previewImg.className = 'theme-selector-card-preview-img';
-  previewImg.draggable = false;
-  previewImg.width = 426;
-  previewImg.height = 240;
-  
+  // Accessible name for the card containing the video preview
+  selectCell.setAttribute('aria-label', `${themeName} - Preview video`);
+
+  // Create poster image element (shown behind video when video is hidden)
+  // This ensures the poster is always visible regardless of video state
+  const posterImg = document.createElement('img');
+  posterImg.className = 'theme-selector-card-poster-img';
+  posterImg.src = url1x;
+  posterImg.alt = ''; // Decorative, video provides the accessible name
+  posterImg.loading = isLcpCandidate ? 'eager' : 'lazy';
+  posterImg.setAttribute('aria-hidden', 'true');
   if (isLcpCandidate) {
-    previewImg.setAttribute('fetchpriority', 'high');
-    previewImg.loading = 'eager';
-  } else {
-    previewImg.loading = 'lazy';
+    posterImg.setAttribute('fetchpriority', 'high');
   }
+  selectCell.appendChild(posterImg);
   
-  selectCell.appendChild(previewImg);
+  // Create video element (hidden by default via CSS opacity)
+  const previewVideo = document.createElement('video');
+  previewVideo.className = 'theme-selector-card-preview-video';
+  previewVideo.poster = url1x;
+  previewVideo.muted = true;
+  previewVideo.playsInline = true;
+  previewVideo.setAttribute('preload', 'none');
+  previewVideo.setAttribute('aria-hidden', 'true');
+  previewVideo.setAttribute('data-testid', `theme-video-${themeId}`);
+  previewVideo.width = 426;
+  previewVideo.height = 240;
+  // Store video source for lazy loading - controller will set src when needed
+  previewVideo.dataset.src = videoUrl;
+  previewVideo.dataset.poster = url1x;
+  
+  // Graceful degradation: on video error, poster image remains visible
+  previewVideo.addEventListener('error', () => {
+    // Video failed to load, but poster is still visible
+    previewVideo.dataset.error = 'true';
+  });
+  
+  selectCell.appendChild(previewVideo);
+
+  // Create play icon overlay (visible when paused, fades on play)
+  // CSS handles hiding this when prefers-reduced-motion is enabled
+  const playIconOverlay = document.createElement('div');
+  playIconOverlay.className = 'theme-selector-card-play-icon';
+  playIconOverlay.setAttribute('aria-hidden', 'true');
+  playIconOverlay.innerHTML = getIconSvg('play', 32);
+  selectCell.appendChild(playIconOverlay);
+
+  // Wire up video playback controller
+  const controller = getVideoController();
+  controller.attach(previewVideo, url1x);
+  
+  // Handle hover/focus events for video playback (if not reduced motion)
+  // Note: We check prefersReducedMotion() at interaction time, not creation time,
+  // so this is reactive to preference changes. CSS also hides the play icon
+  // via @media (prefers-reduced-motion: reduce) for immediate visual feedback.
+  // Play icon visibility is managed by controller's onStateChange callback.
+  selectCell.addEventListener('mouseenter', () => {
+    if (prefersReducedMotion()) return;
+    controller.handleMouseEnter(previewVideo);
+  });
+  
+  selectCell.addEventListener('mouseleave', () => {
+    if (prefersReducedMotion()) return;
+    controller.handleMouseLeave(previewVideo);
+  });
+  
+  selectCell.addEventListener('focus', () => {
+    if (prefersReducedMotion()) return;
+    controller.handleFocus(previewVideo);
+  });
+  
+  selectCell.addEventListener('blur', () => {
+    if (prefersReducedMotion()) return;
+    controller.handleBlur(previewVideo);
+  });
 
   const overlay = document.createElement('div');
   overlay.className = 'theme-selector-card-overlay';
@@ -118,7 +368,7 @@ export function createThemeCard(
 
   const name = document.createElement('div');
   name.className = 'theme-selector-card-name';
-  name.textContent = getThemeDisplayName(themeId);
+  name.textContent = themeName;
 
   const checkmark = document.createElement('div');
   checkmark.className = 'theme-selector-card-checkmark';

@@ -1,3 +1,12 @@
-export { createContributeCard, createThemeCard, destroyAllTooltips,updateFavoriteButton } from './cards';
+export {
+    createContributeCard,
+    createThemeCard,
+    destroyAllTooltips,
+    setupAutoplayUnlock,
+    setupColorModeVideoListener,
+    updateFavoriteButton,
+    updateVideosForColorMode
+} from './cards';
 export { buildThemesContainer, createSentinel } from './containers';
-export { buildResultsCount,buildSearchSection } from './search-section';
+export { buildResultsCount, buildSearchSection } from './search-section';
+
